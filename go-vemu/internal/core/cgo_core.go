@@ -4,9 +4,11 @@
 package core
 
 /*
+#cgo CFLAGS: -I${SRCDIR}/../../../vemu_service/cgo_bridge
 #cgo LDFLAGS: -L${SRCDIR}/../../../vemu_service/cgo_bridge -lvemu -lstdc++
 #include <stdint.h>
-// 未来将包含 "core_bridge.h"
+// Future will include "core_bridge.h"
+#include "core_bridge.h"
 // 临时声明桥接函数，后续替换真实头文件
 void* vemu_new();
 void  vemu_delete(void* inst);
@@ -113,17 +115,41 @@ func (c *cgoCore) SetReg(index uint32, value uint32) error {
 }
 
 func (c *cgoCore) ReadVector(row, elems uint32) ([]uint32, error) {
-	return nil, fmt.Errorf("ReadVector not implemented")
+	if elems == 0 {
+		return nil, nil
+	}
+	buf := make([]uint32, elems)
+	r := C.vemu_read_vector(unsafe.Pointer(c.inst), C.uint32_t(row), C.uint32_t(elems), (*C.uint32_t)(unsafe.Pointer(&buf[0])))
+	if r != 0 {
+		return nil, fmt.Errorf("read_vector error %d", int(r))
+	}
+	return buf, nil
 }
 
 func (c *cgoCore) WriteVector(row uint32, values []uint32) error {
-	return fmt.Errorf("WriteVector not implemented")
+	if len(values) == 0 {
+		return nil
+	}
+	r := C.vemu_write_vector(unsafe.Pointer(c.inst), C.uint32_t(row), C.uint32_t(len(values)), (*C.uint32_t)(unsafe.Pointer(&values[0])))
+	if r != 0 {
+		return fmt.Errorf("write_vector error %d", int(r))
+	}
+	return nil
 }
 
 func (c *cgoCore) GetCSR(id uint32) (uint32, error) {
-	return 0, fmt.Errorf("GetCSR not implemented")
+	var val C.uint32_t
+	r := C.vemu_get_csr(unsafe.Pointer(c.inst), C.uint32_t(id), &val)
+	if r != 0 {
+		return 0, fmt.Errorf("get_csr error %d", int(r))
+	}
+	return uint32(val), nil
 }
 
 func (c *cgoCore) SetCSR(id, value uint32) error {
-	return fmt.Errorf("SetCSR not implemented")
+	r := C.vemu_set_csr(unsafe.Pointer(c.inst), C.uint32_t(id), C.uint32_t(value))
+	if r != 0 {
+		return fmt.Errorf("set_csr error %d", int(r))
+	}
+	return nil
 }

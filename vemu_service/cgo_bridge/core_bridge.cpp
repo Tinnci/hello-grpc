@@ -90,18 +90,34 @@ void vemu_shutdown(void* inst){ (void)inst; }
 // --- Stubs for new APIs ---
 
 int vemu_read_vector(void* inst, uint32_t row, uint32_t elems, uint32_t* values) {
-    (void)inst; (void)row; (void)elems; (void)values;
-    return -1; // Not implemented
+    Emu* e = reinterpret_cast<Emu*>(inst);
+    for (uint32_t i = 0; i < elems; ++i) {
+        values[i] = e->lw_from_vspm(row * 128 + i); // Assuming row-major layout
+    }
+    return 0; 
 }
 int vemu_write_vector(void* inst, uint32_t row, uint32_t elems, const uint32_t* values) {
-    (void)inst; (void)row; (void)elems; (void)values;
-    return -1; // Not implemented
+    Emu* e = reinterpret_cast<Emu*>(inst);
+    for (uint32_t i = 0; i < elems; ++i) {
+        e->st_to_vspm(row * 128 + i, values[i]);
+    }
+    return 0;
 }
 int vemu_get_csr(void* inst, uint32_t id, uint32_t* value) {
-    (void)inst; (void)id; (void)value;
-    return -1; // Not implemented
+    Emu* e = reinterpret_cast<Emu*>(inst);
+    if (id < 32) { // General registers
+        *value = e->cpuregs[id];
+        return 0;
+    }
+    // TODO: Handle other CSRs
+    return -1;
 }
 int vemu_set_csr(void* inst, uint32_t id, uint32_t value) {
-    (void)inst; (void)id; (void)value;
-    return -1; // Not implemented
+    Emu* e = reinterpret_cast<Emu*>(inst);
+     if (id < 32) {
+        e->cpuregs[id] = value;
+        return 0;
+    }
+    // TODO: Handle other CSRs
+    return -1;
 } 
