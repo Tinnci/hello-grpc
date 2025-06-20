@@ -26,13 +26,17 @@ func TestCGO_Core_HexLoadAndStep(t *testing.T) {
 		t.Fatalf("LoadHex() failed: %v", err)
 	}
 
-	executed, err := c.Step(10) // Should stop at ebreak after 4 cycles
+	executed, reason, err := c.Run(10, nil) // Should stop at ebreak after 4 cycles
 	if err != nil {
-		t.Fatalf("Step() failed: %v", err)
+		t.Fatalf("Run() failed: %v", err)
 	}
 
 	if executed != 4 {
-		t.Errorf("Step() executed %d cycles, want 4", executed)
+		t.Errorf("Run() executed %d cycles, want 4", executed)
+	}
+
+	if reason != StopReasonEbreak {
+		t.Errorf("Run() stop reason = %d, want %d (ebreak)", reason, StopReasonEbreak)
 	}
 
 	regs, err := c.GetRegs()

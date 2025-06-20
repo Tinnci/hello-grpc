@@ -6,24 +6,16 @@ package core
 /*
 #cgo CFLAGS: -I${SRCDIR}/../../../vemu_service/cgo_bridge
 #cgo LDFLAGS: -L${SRCDIR}/../../../vemu_service/cgo_bridge -lvemu -lstdc++
-#include <stdint.h>
-// Future will include "core_bridge.h"
 #include "core_bridge.h"
-// 临时声明桥接函数，后续替换真实头文件
-void* vemu_new();
-void  vemu_delete(void* inst);
-int   vemu_load_hex(void* inst, const char* txt, int len);
-int   vemu_step(void* inst, uint64_t n, uint64_t* executed);
-int   vemu_read(void* inst, uint32_t addr, uint32_t len, uint8_t* out);
-int   vemu_write(void* inst, uint32_t addr, uint32_t len, const uint8_t* in);
-void  vemu_reset(void* inst);
-void  vemu_get_state(void* inst, uint32_t* regs32, uint32_t* pc, uint64_t* cycle);
-void  vemu_shutdown(void* inst);
+
+// This is a forward declaration of a Go function
+void go_trace_callback(void* user_data, uint64_t cycle, uint32_t pc);
 */
 import "C"
 
 import (
 	"fmt"
+	"sync"
 	"unsafe"
 
 	v1 "github.com/yourorg/go-vemu/api/v1"
@@ -32,8 +24,36 @@ import (
 // cgoCore 实际包装 C++ Venus/RISCV 模型
 // 注意：实现仅在启用 cgo 时编译
 
+//export go_trace_callback
+func go_trace_callback(user_data unsafe.Pointer, cycle C.uint64_t, pc C.uint32_t) {
+	// This function is called by C, so it must not panic.
+	// We recover from potential panics (e.g., writing to a closed channel).
+	defer func() {
+		recover()
+	}()
+
+	ch_ptr := (*chan<- *v1.TraceEvent)(user_data)
+	if ch_ptr == nil {
+		return
+	}
+	ch := *ch_ptr
+
+	event := &v1.TraceEvent{
+		Cycle: uint64(cycle),
+		Pc:    uint32(pc),
+	}
+	// Non-blocking send
+	select {
+	case ch <- event:
+	default:
+		// Drop if channel is full.
+	}
+}
+
 type cgoCore struct {
-	inst *C.void
+	inst    *C.void
+	traceCh chan<- *v1.TraceEvent
+	mu      sync.Mutex
 }
 
 func newCGO() (Core, error) {
@@ -44,13 +64,21 @@ func newCGO() (Core, error) {
 	return &cgoCore{inst: (*C.void)(p)}, nil
 }
 
-func (c *cgoCore) Reset() { C.vemu_reset(unsafe.Pointer(c.inst)) }
+func (c *cgoCore) Reset() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	C.vemu_reset(unsafe.Pointer(c.inst))
+}
 func (c *cgoCore) Shutdown() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	C.vemu_shutdown(unsafe.Pointer(c.inst))
 	C.vemu_delete(unsafe.Pointer(c.inst))
 }
 
 func (c *cgoCore) LoadHex(txt []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if len(txt) == 0 {
 		return nil
 	}
@@ -61,16 +89,40 @@ func (c *cgoCore) LoadHex(txt []byte) error {
 	return nil
 }
 
-func (c *cgoCore) Step(n uint64) (uint64, error) {
-	var executed C.uint64_t
-	r := C.vemu_step(unsafe.Pointer(c.inst), C.uint64_t(n), &executed)
-	if r != 0 {
-		return 0, fmt.Errorf("step error %d", int(r))
+func (c *cgoCore) Run(cycles uint64, breakpoints map[uint32]struct{}) (uint64, int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var bps []C.uint32_t
+	for pc := range breakpoints {
+		bps = append(bps, C.uint32_t(pc))
 	}
-	return uint64(executed), nil
+
+	var executed C.uint64_t
+	var cb C.trace_cb
+	var userData unsafe.Pointer
+
+	if c.traceCh != nil {
+		cb = (C.trace_cb)(C.go_trace_callback)
+		userData = unsafe.Pointer(&c.traceCh)
+	}
+
+	var bpsPtr *C.uint32_t
+	if len(bps) > 0 {
+		bpsPtr = &bps[0]
+	}
+
+	r := C.vemu_run(unsafe.Pointer(c.inst), C.uint64_t(cycles), bpsPtr, C.int(len(bps)), &executed, cb, userData)
+
+	if int(r) < 0 {
+		return 0, 0, fmt.Errorf("run error %d", int(r))
+	}
+	return uint64(executed), int(r), nil
 }
 
 func (c *cgoCore) ReadMem(addr uint32, length uint32) ([]byte, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	buf := make([]byte, length)
 	if length > 0 {
 		r := C.vemu_read(unsafe.Pointer(c.inst), C.uint32_t(addr), C.uint32_t(length), (*C.uint8_t)(unsafe.Pointer(&buf[0])))
@@ -82,6 +134,8 @@ func (c *cgoCore) ReadMem(addr uint32, length uint32) ([]byte, error) {
 }
 
 func (c *cgoCore) WriteMem(addr uint32, data []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if len(data) == 0 {
 		return nil
 	}
@@ -93,6 +147,8 @@ func (c *cgoCore) WriteMem(addr uint32, data []byte) error {
 }
 
 func (c *cgoCore) GetState() *v1.CpuState {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	var regs [32]C.uint32_t
 	var pc C.uint32_t
 	var cycle C.uint64_t
@@ -105,16 +161,42 @@ func (c *cgoCore) GetState() *v1.CpuState {
 }
 
 func (c *cgoCore) GetRegs() ([]uint32, error) {
+	// This is lock-free because GetState acquires the lock.
 	st := c.GetState()
 	return st.Regs, nil
 }
 
 func (c *cgoCore) SetReg(index uint32, value uint32) error {
-	// TODO: add C API to set register; for now return not implemented
-	return fmt.Errorf("SetReg not implemented in cgo core")
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	r := C.vemu_set_reg(unsafe.Pointer(c.inst), C.uint32_t(index), C.uint32_t(value))
+	if r != 0 {
+		return fmt.Errorf("SetReg failed with code %d", int(r))
+	}
+	return nil
+}
+
+func (c *cgoCore) Pause(paused bool) {
+	// This is a fast, non-blocking call to the C side,
+	// but we take the lock to ensure consistency with other operations.
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	p := 0
+	if paused {
+		p = 1
+	}
+	C.vemu_pause(unsafe.Pointer(c.inst), C.int(p))
+}
+
+func (c *cgoCore) SetTraceChan(ch chan<- *v1.TraceEvent) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.traceCh = ch
 }
 
 func (c *cgoCore) ReadVector(row, elems uint32) ([]uint32, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if elems == 0 {
 		return nil, nil
 	}
@@ -127,6 +209,8 @@ func (c *cgoCore) ReadVector(row, elems uint32) ([]uint32, error) {
 }
 
 func (c *cgoCore) WriteVector(row uint32, values []uint32) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if len(values) == 0 {
 		return nil
 	}
@@ -138,6 +222,8 @@ func (c *cgoCore) WriteVector(row uint32, values []uint32) error {
 }
 
 func (c *cgoCore) GetCSR(id uint32) (uint32, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	var val C.uint32_t
 	r := C.vemu_get_csr(unsafe.Pointer(c.inst), C.uint32_t(id), &val)
 	if r != 0 {
@@ -147,6 +233,8 @@ func (c *cgoCore) GetCSR(id uint32) (uint32, error) {
 }
 
 func (c *cgoCore) SetCSR(id, value uint32) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	r := C.vemu_set_csr(unsafe.Pointer(c.inst), C.uint32_t(id), C.uint32_t(value))
 	if r != 0 {
 		return fmt.Errorf("set_csr error %d", int(r))

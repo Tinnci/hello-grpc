@@ -5,7 +5,6 @@ import (
 	"log"
 	"net"
 	"sync"
-	"time"
 
 	"google.golang.org/grpc"
 
@@ -14,70 +13,87 @@ import (
 )
 
 type execCmd struct {
-	cycles uint64
-	reply  chan<- execResult
-	pause  bool
+	cycles      uint64
+	single_step bool
+	reply       chan<- execResult
 }
 
 type execResult struct {
 	executed uint64
 	err      error
+	reason   int
 }
 
 type vemuServer struct {
 	pb.UnimplementedVemuServiceServer
-	mu      sync.Mutex
-	core    core.Core
-	execCh  chan execCmd
-	traceCh chan *pb.TraceEvent
-	stopCh  chan struct{}
+	mu          sync.Mutex
+	core        core.Core
+	execCh      chan execCmd
+	traceCh     chan *pb.TraceEvent
+	stopCh      chan struct{}
+	breakpoints map[uint32]struct{}
 }
+
+const runBatchSize = 1000
 
 func newServer() *vemuServer {
 	s := &vemuServer{
-		core:    core.New(),
-		execCh:  make(chan execCmd, 1),
-		traceCh: make(chan *pb.TraceEvent, 100),
-		stopCh:  make(chan struct{}),
+		core:        core.New(),
+		execCh:      make(chan execCmd, 1),
+		traceCh:     make(chan *pb.TraceEvent, 100),
+		stopCh:      make(chan struct{}),
+		breakpoints: make(map[uint32]struct{}),
 	}
+	s.core.SetTraceChan(s.traceCh)
 	go s.execLoop()
 	return s
 }
 
 func (s *vemuServer) execLoop() {
-	ticker := time.NewTicker(10 * time.Millisecond) // Prevent busy-loop
-	defer ticker.Stop()
-
 	for {
 		select {
 		case cmd := <-s.execCh:
-			if cmd.pause {
-				if cmd.reply != nil {
-					cmd.reply <- execResult{}
-				}
-				continue
-			}
-
 			s.mu.Lock()
-			executed, err := s.core.Step(cmd.cycles)
+			currentBreakpoints := s.breakpoints
 			s.mu.Unlock()
 
-			if len(s.traceCh) < cap(s.traceCh) {
-				// Simplified trace event
-				state := s.core.GetState()
-				s.traceCh <- &pb.TraceEvent{
-					Cycle: state.Cycle,
-					Pc:    state.Pc,
+			var totalExecuted uint64
+			var finalReason int
+			var finalErr error
+
+			cyclesToRun := cmd.cycles
+			if cyclesToRun == 0 && !cmd.single_step {
+				cyclesToRun = ^uint64(0) // "infinite"
+			} else if cmd.single_step {
+				cyclesToRun = 1
+			}
+
+		runLoop:
+			for totalExecuted < cyclesToRun {
+				batchCycles := cyclesToRun - totalExecuted
+				if !cmd.single_step && batchCycles > runBatchSize {
+					batchCycles = runBatchSize
+				}
+				if batchCycles == 0 {
+					break
+				}
+
+				executed, reason, err := s.core.Run(batchCycles, currentBreakpoints)
+				totalExecuted += executed
+				finalReason = reason
+				finalErr = err
+
+				if reason != core.StopReasonDone || err != nil {
+					break runLoop
 				}
 			}
 
 			if cmd.reply != nil {
-				cmd.reply <- execResult{executed: executed, err: err}
+				cmd.reply <- execResult{executed: totalExecuted, err: finalErr, reason: finalReason}
 			}
+
 		case <-s.stopCh:
 			return
-		case <-ticker.C:
-			// Allows loop to check stopCh periodically
 		}
 	}
 }
@@ -86,21 +102,20 @@ func (s *vemuServer) execLoop() {
 func (s *vemuServer) Reset(ctx context.Context, _ *pb.Empty) (*pb.Status, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.core.Pause(true)
 	s.core.Reset()
+	s.breakpoints = make(map[uint32]struct{})
 	return &pb.Status{Ok: true}, nil
 }
 
 func (s *vemuServer) Shutdown(ctx context.Context, _ *pb.Empty) (*pb.Status, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.core.Shutdown()
+	close(s.stopCh)
 	return &pb.Status{Ok: true}, nil
 }
 
 // ────────────── LoadFirmware ──────────────
 func (s *vemuServer) LoadFirmware(ctx context.Context, r *pb.LoadFirmwareRequest) (*pb.Status, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	if err := s.core.LoadHex(r.HexText); err != nil {
 		return &pb.Status{Ok: false, Message: err.Error()}, nil
 	}
@@ -109,24 +124,20 @@ func (s *vemuServer) LoadFirmware(ctx context.Context, r *pb.LoadFirmwareRequest
 
 // ────────────── Step ──────────────
 func (s *vemuServer) Step(ctx context.Context, r *pb.StepRequest) (*pb.StepResponse, error) {
+	s.core.Pause(false)
 	replyCh := make(chan execResult, 1)
-	s.execCh <- execCmd{cycles: r.Cycles, reply: replyCh}
-
+	s.execCh <- execCmd{cycles: r.Cycles, single_step: true, reply: replyCh}
 	res := <-replyCh
 	return &pb.StepResponse{CyclesExecuted: res.executed}, res.err
 }
 
 // ────────────── QueryState ──────────────
 func (s *vemuServer) QueryState(ctx context.Context, _ *pb.Empty) (*pb.CpuState, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	return s.core.GetState(), nil
 }
 
 // ────────────── Memory ──────────────
 func (s *vemuServer) ReadMemory(ctx context.Context, r *pb.ReadMemRequest) (*pb.ReadMemResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	data, err := s.core.ReadMem(r.Addr, r.Length)
 	if err != nil {
 		return nil, err
@@ -135,8 +146,6 @@ func (s *vemuServer) ReadMemory(ctx context.Context, r *pb.ReadMemRequest) (*pb.
 }
 
 func (s *vemuServer) WriteMemory(ctx context.Context, r *pb.WriteMemRequest) (*pb.Status, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	if err := s.core.WriteMem(r.Addr, r.Data); err != nil {
 		return &pb.Status{Ok: false, Message: err.Error()}, nil
 	}
@@ -145,8 +154,6 @@ func (s *vemuServer) WriteMemory(ctx context.Context, r *pb.WriteMemRequest) (*p
 
 // ────────────── Register access ──────────────
 func (s *vemuServer) GetRegs(ctx context.Context, _ *pb.Empty) (*pb.RegisterFile, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	regs, err := s.core.GetRegs()
 	if err != nil {
 		return nil, err
@@ -155,8 +162,6 @@ func (s *vemuServer) GetRegs(ctx context.Context, _ *pb.Empty) (*pb.RegisterFile
 }
 
 func (s *vemuServer) SetReg(ctx context.Context, req *pb.SetRegRequest) (*pb.Status, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	if err := s.core.SetReg(req.Index, req.Value); err != nil {
 		return &pb.Status{Ok: false, Message: err.Error()}, nil
 	}
@@ -165,8 +170,6 @@ func (s *vemuServer) SetReg(ctx context.Context, req *pb.SetRegRequest) (*pb.Sta
 
 // ────────────── Vector / CSR ops ──────────────
 func (s *vemuServer) ReadVector(ctx context.Context, r *pb.ReadVectorRequest) (*pb.ReadVectorResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	vals, err := s.core.ReadVector(r.Row, r.Elems)
 	if err != nil {
 		return nil, err
@@ -175,8 +178,6 @@ func (s *vemuServer) ReadVector(ctx context.Context, r *pb.ReadVectorRequest) (*
 }
 
 func (s *vemuServer) WriteVector(ctx context.Context, r *pb.WriteVectorRequest) (*pb.Status, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	err := s.core.WriteVector(r.Row, r.Values)
 	if err != nil {
 		return &pb.Status{Ok: false, Message: err.Error()}, nil
@@ -185,8 +186,6 @@ func (s *vemuServer) WriteVector(ctx context.Context, r *pb.WriteVectorRequest) 
 }
 
 func (s *vemuServer) GetCSR(ctx context.Context, r *pb.GetCsrRequest) (*pb.GetCsrResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	val, err := s.core.GetCSR(r.Id)
 	if err != nil {
 		return nil, err
@@ -195,8 +194,6 @@ func (s *vemuServer) GetCSR(ctx context.Context, r *pb.GetCsrRequest) (*pb.GetCs
 }
 
 func (s *vemuServer) SetCSR(ctx context.Context, r *pb.SetCsrRequest) (*pb.Status, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	err := s.core.SetCSR(r.Id, r.Value)
 	if err != nil {
 		return &pb.Status{Ok: false, Message: err.Error()}, nil
@@ -206,15 +203,17 @@ func (s *vemuServer) SetCSR(ctx context.Context, r *pb.SetCsrRequest) (*pb.Statu
 
 // ────────────── Run / Pause ──────────────
 func (s *vemuServer) Run(ctx context.Context, r *pb.RunRequest) (*pb.RunResponse, error) {
+	s.core.Pause(false)
 	replyCh := make(chan execResult, 1)
 	s.execCh <- execCmd{cycles: r.MaxCycles, reply: replyCh}
 
 	res := <-replyCh
-	return &pb.RunResponse{CyclesExecuted: res.executed}, res.err
+	ebreak := res.reason == core.StopReasonBreakpoint || res.reason == core.StopReasonEbreak || res.reason == core.StopReasonPaused
+	return &pb.RunResponse{CyclesExecuted: res.executed, Ebreak: ebreak}, res.err
 }
 
 func (s *vemuServer) Pause(ctx context.Context, _ *pb.Empty) (*pb.Status, error) {
-	s.execCh <- execCmd{pause: true}
+	s.core.Pause(true)
 	return &pb.Status{Ok: true}, nil
 }
 
@@ -232,6 +231,29 @@ func (s *vemuServer) TraceStream(req *pb.Empty, stream pb.VemuService_TraceStrea
 			return nil
 		}
 	}
+}
+
+// ────────────── LoadBinaryBlob ──────────────
+func (s *vemuServer) LoadBinaryBlob(ctx context.Context, r *pb.LoadBinaryRequest) (*pb.Status, error) {
+	if err := s.core.WriteMem(r.Addr, r.Data); err != nil {
+		return &pb.Status{Ok: false, Message: err.Error()}, nil
+	}
+	return &pb.Status{Ok: true}, nil
+}
+
+// ────────────── 断点 ──────────────
+func (s *vemuServer) SetBreakpoint(ctx context.Context, r *pb.BreakpointRequest) (*pb.Status, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.breakpoints[r.Pc] = struct{}{}
+	return &pb.Status{Ok: true}, nil
+}
+
+func (s *vemuServer) ClearBreakpoint(ctx context.Context, r *pb.BreakpointRequest) (*pb.Status, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.breakpoints, r.Pc)
+	return &pb.Status{Ok: true}, nil
 }
 
 // TODO: 其余 RPC (Run, Pause, TraceStream, etc.)

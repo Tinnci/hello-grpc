@@ -1,6 +1,16 @@
 package core
 
-import v1 "github.com/yourorg/go-vemu/api/v1"
+import (
+	v1 "github.com/yourorg/go-vemu/api/v1"
+)
+
+const (
+	StopReasonDone       = 0
+	StopReasonBreakpoint = 1
+	StopReasonPaused     = 2
+	StopReasonEbreak     = 3
+	StopReasonHostTrap   = 4
+)
 
 // Core 抽象，RPC 层只依赖该接口
 // 后续可替换为纯 Go、cgo、JIT 等不同实现
@@ -8,12 +18,14 @@ import v1 "github.com/yourorg/go-vemu/api/v1"
 type Core interface {
 	Reset()
 	LoadHex(hexText []byte) error
-	// Step 执行 cycles，返回真正执行的周期数
-	Step(cycles uint64) (executed uint64, err error)
+	// Run 执行 cycles，或直到遇到暂停/断点/ebreak
+	Run(cycles uint64, breakpoints map[uint32]struct{}) (executed uint64, reason int, err error)
 	ReadMem(addr uint32, length uint32) ([]byte, error)
 	WriteMem(addr uint32, data []byte) error
 	GetState() *v1.CpuState
 	Shutdown()
+	Pause(paused bool)
+
 	// Register access
 	GetRegs() ([]uint32, error)
 	SetReg(index uint32, value uint32) error
@@ -25,4 +37,7 @@ type Core interface {
 	// CSR access
 	GetCSR(id uint32) (uint32, error)
 	SetCSR(id, value uint32) error
+
+	// Tracing control if needed
+	SetTraceChan(ch chan<- *v1.TraceEvent)
 }

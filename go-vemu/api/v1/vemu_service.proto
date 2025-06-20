@@ -54,7 +54,7 @@ message LoadBinaryRequest    { uint32 addr   = 1; bytes data = 2; }
 // ③ ─ 运行控制
 message StepRequest          { uint64 cycles = 1; }   // 0 => 单指令
 message StepResponse         { uint64 cycles_executed = 1; }
-message RunRequest           { uint64 max_cycles = 1; }
+message RunRequest           { uint64 max_cycles = 1; } // max_cycles = 0 means run indefinitely
 message RunResponse          { uint64 cycles_executed = 1; bool ebreak = 2; }
 
 // ④ ─ 存储访问
