@@ -17,4 +17,12 @@ type Core interface {
 	// Register access
 	GetRegs() ([]uint32, error)
 	SetReg(index uint32, value uint32) error
+
+	// Vector ops
+	ReadVector(row, elems uint32) ([]uint32, error)
+	WriteVector(row uint32, values []uint32) error
+
+	// CSR access
+	GetCSR(id uint32) (uint32, error)
+	SetCSR(id, value uint32) error
 }

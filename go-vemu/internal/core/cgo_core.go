@@ -111,3 +111,19 @@ func (c *cgoCore) SetReg(index uint32, value uint32) error {
 	// TODO: add C API to set register; for now return not implemented
 	return fmt.Errorf("SetReg not implemented in cgo core")
 }
+
+func (c *cgoCore) ReadVector(row, elems uint32) ([]uint32, error) {
+	return nil, fmt.Errorf("ReadVector not implemented")
+}
+
+func (c *cgoCore) WriteVector(row uint32, values []uint32) error {
+	return fmt.Errorf("WriteVector not implemented")
+}
+
+func (c *cgoCore) GetCSR(id uint32) (uint32, error) {
+	return 0, fmt.Errorf("GetCSR not implemented")
+}
+
+func (c *cgoCore) SetCSR(id, value uint32) error {
+	return fmt.Errorf("SetCSR not implemented")
+}

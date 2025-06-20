@@ -85,4 +85,23 @@ void vemu_get_state(void* inst, uint32_t* regs32, uint32_t* pc, uint64_t* cycle)
     if(cycle) *cycle = e->counter.cycle_count;
 }
 
-void vemu_shutdown(void* inst){ (void)inst; } 
+void vemu_shutdown(void* inst){ (void)inst; }
+
+// --- Stubs for new APIs ---
+
+int vemu_read_vector(void* inst, uint32_t row, uint32_t elems, uint32_t* values) {
+    (void)inst; (void)row; (void)elems; (void)values;
+    return -1; // Not implemented
+}
+int vemu_write_vector(void* inst, uint32_t row, uint32_t elems, const uint32_t* values) {
+    (void)inst; (void)row; (void)elems; (void)values;
+    return -1; // Not implemented
+}
+int vemu_get_csr(void* inst, uint32_t id, uint32_t* value) {
+    (void)inst; (void)id; (void)value;
+    return -1; // Not implemented
+}
+int vemu_set_csr(void* inst, uint32_t id, uint32_t value) {
+    (void)inst; (void)id; (void)value;
+    return -1; // Not implemented
+} 

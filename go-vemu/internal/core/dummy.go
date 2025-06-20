@@ -37,3 +37,16 @@ func (d *Dummy) GetRegs() ([]uint32, error) {
 }
 
 func (d *Dummy) SetReg(_ uint32, _ uint32) error { return nil }
+
+func (d *Dummy) ReadVector(_, elems uint32) ([]uint32, error) {
+	return make([]uint32, elems), nil
+}
+func (d *Dummy) WriteVector(_ uint32, _ []uint32) error {
+	return nil
+}
+func (d *Dummy) GetCSR(_ uint32) (uint32, error) {
+	return 0, nil
+}
+func (d *Dummy) SetCSR(_, _ uint32) error {
+	return nil
+}
