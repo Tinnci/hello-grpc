@@ -1,3 +1,6 @@
+//go:build !cgo
+// +build !cgo
+
 package core
 
 // New 返回默认 Core 实现。

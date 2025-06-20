@@ -1,0 +1,17 @@
+{
+  // Go 扩展配置
+  "go.toolsEnvVars": {
+    // 确保 VS Code 中的构建和测试启用 CGO
+    "CGO_ENABLED": "1"
+  },
+  "gopls": {
+    // 使用 cgo 标签进行代码分析（符合实际运行方式）
+    "buildFlags": ["-tags=cgo"],
+    // 减少无用的诊断输出
+    "ui.completion.usePlaceholders": true,
+    "analyses": {
+      "unusedparams": true,
+      "shadow": true
+    }
+  }
+}
