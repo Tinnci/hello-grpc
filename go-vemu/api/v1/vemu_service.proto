@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package vemu.v1;
+
+option go_package = "github.com/yourorg/go-vemu/api/v1;v1";
+
+// ────────────────── ① 生命周期 ──────────────────
+service VemuService {
+  rpc Reset            (Empty)   returns (Status);
+  rpc Shutdown         (Empty)   returns (Status);
+
+  // ──────────────── ② 装载固件 / 数据 ────────────────
+  rpc LoadFirmware     (LoadFirmwareRequest)     returns (Status);
+  rpc LoadBinaryBlob   (LoadBinaryRequest)       returns (Status);
+
+  // ──────────────── ③ 运行控制 ────────────────
+  rpc Step             (StepRequest)             returns (StepResponse);
+  rpc Run              (RunRequest)              returns (RunResponse);
+  rpc Pause            (Empty)   returns (Status);
+  rpc QueryState       (Empty)   returns (CpuState);
+
+  // ──────────────── ④ 存储访问 ────────────────
+  rpc ReadMemory       (ReadMemRequest)          returns (ReadMemResponse);
+  rpc WriteMemory      (WriteMemRequest)         returns (Status);
+
+  // 专门读取/写入 Venus DSPM
+  rpc ReadVector       (ReadVectorRequest)       returns (ReadVectorResponse);
+  rpc WriteVector      (WriteVectorRequest)      returns (Status);
+
+  // ──────────────── ⑤ CPU/CSR 访问 ────────────────
+  rpc GetRegs          (Empty)   returns (RegisterFile);
+  rpc SetReg           (SetRegRequest)           returns (Status);
+  rpc GetCSR           (GetCsrRequest)           returns (GetCsrResponse);
+  rpc SetCSR           (SetCsrRequest)           returns (Status);
+
+  // ──────────────── ⑥ 调试 / 事件流 ────────────────
+  rpc TraceStream      (Empty)   returns (stream TraceEvent);
+  rpc SetBreakpoint    (BreakpointRequest)       returns (Status);
+  rpc ClearBreakpoint  (BreakpointRequest)       returns (Status);
+}
+
+// ────────────────── 消息定义 ──────────────────
+
+// 通用成功 / 失败
+message Status {
+  bool ok          = 1;
+  string message   = 2;
+}
+
+// ② ─ 固件 / 数据
+message LoadFirmwareRequest  { bytes hex_text = 1; }  // 直接传文本 .hex
+message LoadBinaryRequest    { uint32 addr   = 1; bytes data = 2; }
+
+// ③ ─ 运行控制
+message StepRequest          { uint64 cycles = 1; }   // 0 => 单指令
+message StepResponse         { uint64 cycles_executed = 1; }
+message RunRequest           { uint64 max_cycles = 1; }
+message RunResponse          { uint64 cycles_executed = 1; bool ebreak = 2; }
+
+// ④ ─ 存储访问
+message ReadMemRequest       { uint32 addr  = 1; uint32 length = 2; }
+message ReadMemResponse      { bytes  data  = 1; }
+message WriteMemRequest      { uint32 addr  = 1; bytes data   = 2; }
+
+// Venus DSPM（ROW 视图）
+message ReadVectorRequest    { uint32 row   = 1;  uint32 elems = 2; }
+message ReadVectorResponse   { repeated uint32 values = 1; }
+message WriteVectorRequest   {
+  uint32 row = 1; repeated uint32 values = 2;
+}
+
+// ⑤ ─ CPU / CSR
+message RegisterFile         { repeated uint32 regs = 1; uint32 pc = 2; }
+message SetRegRequest        { uint32 index = 1; uint32 value = 2; }
+message GetCsrRequest        { uint32 id    = 1; }
+message GetCsrResponse       { uint32 value = 1; }
+message SetCsrRequest        { uint32 id    = 1; uint32 value = 2; }
+
+// 新增 CPU 状态整体视图 (给 QueryState 返回)
+message CpuState {
+  repeated uint32 regs = 1;
+  uint32 pc = 2;
+  uint64 cycle = 3;
+}
+
+// ⑥ ─ 调试
+message BreakpointRequest    { uint32 pc = 1; }
+
+// 空消息
+message Empty {}
+
+message TraceEvent {
+  uint64 cycle   = 1;
+  uint32 pc      = 2;
+  uint32 instr   = 3;
+  string name    = 4;          // e.g. "addi" / "VADD"
+  repeated uint32 regs = 5;    // 可选：发生改变的寄存器
+} 

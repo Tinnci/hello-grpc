@@ -1,4 +1,4 @@
-module hello-grpc
+module github.com/yourorg/go-vemu
 
 go 1.23.0
 
