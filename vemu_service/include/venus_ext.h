@@ -1,4 +1,5 @@
 #include "RISCV.h"
+#include <atomic>
 #include <cmath>
 #include <fstream>
 #include <tuple>
@@ -104,6 +105,7 @@ private:
   } MY_VENUS_INS_PARAM;
 
 public:
+  std::atomic<bool> paused_{false};
   int vins_issue_idx;
   ofstream dumpfile;
   struct TaskReturn {
@@ -137,6 +139,7 @@ public:
   char *venus_vew_str(VEW vew);
   char *venus_optype_str(OP_TYPE op);
   void init_param() override {
+    paused_ = false;
     memset(&MY_VENUS_INS_PARAM, 0, sizeof(MY_VENUS_INS_PARAM));
   };
 };

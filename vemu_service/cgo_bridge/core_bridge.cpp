@@ -6,8 +6,17 @@
 #include <fstream>
 #include <string>
 #include <unistd.h>
+#include <unordered_set>
+#include <vector>
 
 using Emu = Venus_Emulator;
+
+// Stop reasons for vemu_run, must match core.go
+const int STOP_REASON_DONE = 0;
+const int STOP_REASON_BREAKPOINT = 1;
+const int STOP_REASON_PAUSED = 2;
+const int STOP_REASON_EBREAK = 3;
+const int STOP_REASON_HOST_TRAP = 4;
 
 static std::string write_hex_to_tmp(const char* txt, int len) {
     char tmpl[] = "/tmp/vemu_hex_XXXXXX";
@@ -37,16 +46,39 @@ int vemu_load_hex(void* inst, const char* text, int len){
     return 0;
 }
 
-int vemu_step(void* inst, uint64_t n, uint64_t* executed){
-    if(!inst) return -1;
+int vemu_run(void* inst, uint64_t n, const uint32_t* bps, int bps_len, uint64_t* executed, trace_cb cb, void* user_data) {
+    if (!inst) return -1;
     Emu* e = reinterpret_cast<Emu*>(inst);
-    uint64_t done=0;
-    for(; done<n || n==0; ++done){
+    uint64_t done = 0;
+    std::unordered_set<uint32_t> breakpoints(bps, bps + bps_len);
+
+    for (; done < n || n == 0; ++done) {
+        if (e->paused_.load(std::memory_order_relaxed)) {
+            if (executed) *executed = done;
+            return STOP_REASON_PAUSED;
+        }
+
         e->emulate();
-        if(e->ebreak || e->trap) { ++done; break; }
+
+        if (cb) {
+            cb(user_data, e->counter.cycle_count, e->pc);
+        }
+
+        if (e->ebreak || e->trap) {
+            ++done;
+            if (executed) *executed = done;
+            return e->ebreak ? STOP_REASON_EBREAK : STOP_REASON_HOST_TRAP;
+        }
+
+        if (!breakpoints.empty() && breakpoints.count(e->pc)) {
+            ++done;
+            if (executed) *executed = done;
+            return STOP_REASON_BREAKPOINT;
+        }
     }
-    if(executed) *executed = done;
-    return 0;
+
+    if (executed) *executed = done;
+    return STOP_REASON_DONE;
 }
 
 static inline bool is_scalar(uint32_t addr){ return addr < 0x100000; }
@@ -86,6 +118,18 @@ void vemu_get_state(void* inst, uint32_t* regs32, uint32_t* pc, uint64_t* cycle)
 }
 
 void vemu_shutdown(void* inst){ (void)inst; }
+
+void vemu_pause(void* inst, int p) {
+    if (!inst) return;
+    reinterpret_cast<Emu*>(inst)->paused_.store(p != 0, std::memory_order_relaxed);
+}
+
+int vemu_set_reg(void* inst, uint32_t idx, uint32_t val) {
+    if (!inst || idx >= 32) return -1;
+    Emu* e = reinterpret_cast<Emu*>(inst);
+    e->cpuregs[idx] = val;
+    return 0;
+}
 
 // --- Stubs for new APIs ---
 
