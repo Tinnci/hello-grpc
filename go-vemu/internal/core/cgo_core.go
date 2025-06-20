@@ -7,8 +7,9 @@ package core
 #cgo CFLAGS: -I${SRCDIR}/../../../vemu_service/cgo_bridge
 #cgo LDFLAGS: -L${SRCDIR}/../../../vemu_service/cgo_bridge -lvemu -lstdc++
 #include "core_bridge.h"
+#include <stdlib.h>
 
-// This is a forward declaration of a Go function
+// Forward declaration of a Go function
 void go_trace_callback(void* user_data, uint64_t cycle, uint32_t pc);
 */
 import "C"
@@ -131,11 +132,13 @@ func (c *cgoCore) ReadMem(addr uint32, length uint32) ([]byte, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	buf := make([]byte, length)
-	if length > 0 {
-		r := C.vemu_read(unsafe.Pointer(c.inst), C.uint32_t(addr), C.uint32_t(length), (*C.uint8_t)(unsafe.Pointer(&buf[0])))
-		if r != 0 {
-			return nil, fmt.Errorf("read error %d", int(r))
-		}
+	if length == 0 {
+		return buf, nil
+	}
+	var cErrorMsg *C.char
+	r := C.vemu_read(unsafe.Pointer(c.inst), C.uint32_t(addr), C.uint32_t(length), (*C.uint8_t)(unsafe.Pointer(&buf[0])), &cErrorMsg)
+	if r != 0 {
+		return nil, newCGoError("vemu_read", r, cErrorMsg)
 	}
 	return buf, nil
 }
@@ -146,9 +149,10 @@ func (c *cgoCore) WriteMem(addr uint32, data []byte) error {
 	if len(data) == 0 {
 		return nil
 	}
-	r := C.vemu_write(unsafe.Pointer(c.inst), C.uint32_t(addr), C.uint32_t(len(data)), (*C.uint8_t)(unsafe.Pointer(&data[0])))
+	var cErrorMsg *C.char
+	r := C.vemu_write(unsafe.Pointer(c.inst), C.uint32_t(addr), C.uint32_t(len(data)), (*C.uint8_t)(unsafe.Pointer(&data[0])), &cErrorMsg)
 	if r != 0 {
-		return fmt.Errorf("write error %d", int(r))
+		return newCGoError("vemu_write", r, cErrorMsg)
 	}
 	return nil
 }
@@ -176,9 +180,10 @@ func (c *cgoCore) GetRegs() ([]uint32, error) {
 func (c *cgoCore) SetReg(index uint32, value uint32) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	r := C.vemu_set_reg(unsafe.Pointer(c.inst), C.uint32_t(index), C.uint32_t(value))
+	var cErrorMsg *C.char
+	r := C.vemu_set_reg(unsafe.Pointer(c.inst), C.uint32_t(index), C.uint32_t(value), &cErrorMsg)
 	if r != 0 {
-		return fmt.Errorf("SetReg failed with code %d", int(r))
+		return newCGoError("vemu_set_reg", r, cErrorMsg)
 	}
 	return nil
 }
@@ -237,9 +242,10 @@ func (c *cgoCore) GetCSR(id uint32) (uint32, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	var val C.uint32_t
-	r := C.vemu_get_csr(unsafe.Pointer(c.inst), C.uint32_t(id), &val)
+	var cErrorMsg *C.char
+	r := C.vemu_get_csr(unsafe.Pointer(c.inst), C.uint32_t(id), &val, &cErrorMsg)
 	if r != 0 {
-		return 0, fmt.Errorf("get_csr error %d", int(r))
+		return 0, newCGoError("vemu_get_csr", r, cErrorMsg)
 	}
 	return uint32(val), nil
 }
@@ -247,9 +253,21 @@ func (c *cgoCore) GetCSR(id uint32) (uint32, error) {
 func (c *cgoCore) SetCSR(id, value uint32) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	r := C.vemu_set_csr(unsafe.Pointer(c.inst), C.uint32_t(id), C.uint32_t(value))
+	var cErrorMsg *C.char
+	r := C.vemu_set_csr(unsafe.Pointer(c.inst), C.uint32_t(id), C.uint32_t(value), &cErrorMsg)
 	if r != 0 {
-		return fmt.Errorf("set_csr error %d", int(r))
+		return newCGoError("vemu_set_csr", r, cErrorMsg)
 	}
 	return nil
+}
+
+// newCGoError is a helper to build a Go error from a CGO call result.
+// It frees the C error string.
+func newCGoError(funcName string, code C.int, cErrorMsg *C.char) error {
+	if cErrorMsg != nil {
+		goErrStr := C.GoString(cErrorMsg)
+		C.free(unsafe.Pointer(cErrorMsg))
+		return fmt.Errorf("%s failed: %s", funcName, goErrStr)
+	}
+	return fmt.Errorf("%s failed with code %d", funcName, int(code))
 }

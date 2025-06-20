@@ -5,6 +5,7 @@ package core
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 )
 
@@ -104,4 +105,42 @@ func TestCGO_Core_Vector(t *testing.T) {
 			t.Errorf("ReadVector()[%d] got %d, want %d", i, readData[i], writeData[i])
 		}
 	}
+}
+
+func TestCGO_ReadMem_OutOfBoundsError(t *testing.T) {
+	c, err := newCGO()
+	if err != nil {
+		t.Fatalf("newCGO() failed: %v", err)
+	}
+	defer c.Shutdown()
+
+	// An address far beyond the 4MB SRAM size
+	addr := uint32(0x100000 * 4)
+	_, err = c.ReadMem(addr, 4)
+
+	if err == nil {
+		t.Fatal("ReadMem at out-of-bounds address should have returned an error, but got nil")
+	}
+
+	expectedErrStr := "out of bounds"
+	if !strings.Contains(err.Error(), expectedErrStr) {
+		t.Errorf("Error message did not contain expected substring.\nGot:    %s\nWanted: %s", err.Error(), expectedErrStr)
+	}
+	t.Logf("Received expected error: %v", err)
+}
+
+func TestCGO_SetReg_InvalidIndex(t *testing.T) {
+	c, _ := newCGO()
+	defer c.Shutdown()
+
+	err := c.SetReg(32, 123) // Index 32 is invalid
+	if err == nil {
+		t.Fatal("SetReg with invalid index should have returned an error, but got nil")
+	}
+
+	expectedErrStr := "invalid register index"
+	if !strings.Contains(err.Error(), expectedErrStr) {
+		t.Errorf("Error message did not contain expected substring.\nGot:    %s\nWanted: %s", err.Error(), expectedErrStr)
+	}
+	t.Logf("Received expected error: %v", err)
 }

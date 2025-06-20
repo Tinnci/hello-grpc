@@ -112,8 +112,15 @@ int vemu_run(void* inst, uint64_t n, const uint32_t* bps, int bps_len, uint64_t*
 
 static inline bool is_scalar(uint32_t addr){ return addr < 0x100000; }
 
-int vemu_read(void* inst, uint32_t addr, uint32_t len, uint8_t* out){
+int vemu_read(void* inst, uint32_t addr, uint32_t len, uint8_t* out, char** error_msg) {
+    if (error_msg) *error_msg = nullptr;
     Emu* e = reinterpret_cast<Emu*>(inst);
+    if (addr + len > CPU::SRAMSIZE * 4 || addr + len < addr) { // Check for overflow
+        if (error_msg) {
+            asprintf(error_msg, "read out of bounds: address 0x%x with length %u exceeds sram size", addr, len);
+        }
+        return -1;
+    }
     for(uint32_t i=0;i<len;++i){
         uint32_t byte_addr = addr + i;
         uint32_t word = e->sram[byte_addr/4];
@@ -122,8 +129,15 @@ int vemu_read(void* inst, uint32_t addr, uint32_t len, uint8_t* out){
     return 0;
 }
 
-int vemu_write(void* inst, uint32_t addr, uint32_t len, const uint8_t* in){
+int vemu_write(void* inst, uint32_t addr, uint32_t len, const uint8_t* in, char** error_msg) {
+    if (error_msg) *error_msg = nullptr;
     Emu* e = reinterpret_cast<Emu*>(inst);
+    if (addr + len > CPU::SRAMSIZE * 4 || addr + len < addr) { // Check for overflow
+        if (error_msg) {
+            asprintf(error_msg, "write out of bounds: address 0x%x with length %u exceeds sram size", addr, len);
+        }
+        return -1;
+    }
     for(uint32_t i=0;i<len;++i){
         uint32_t byte_addr = addr + i;
         uint32_t& word = e->sram[byte_addr/4];
@@ -153,8 +167,15 @@ void vemu_pause(void* inst, int p) {
     reinterpret_cast<Emu*>(inst)->paused_.store(p != 0, std::memory_order_relaxed);
 }
 
-int vemu_set_reg(void* inst, uint32_t idx, uint32_t val) {
-    if (!inst || idx >= 32) return -1;
+int vemu_set_reg(void* inst, uint32_t idx, uint32_t val, char** error_msg) {
+    if (error_msg) *error_msg = nullptr;
+    if (!inst) return -1; // Should not happen
+    if (idx >= 32) {
+        if (error_msg) {
+            asprintf(error_msg, "invalid register index %u, must be < 32", idx);
+        }
+        return -1;
+    }
     Emu* e = reinterpret_cast<Emu*>(inst);
     e->cpuregs[idx] = val;
     return 0;
@@ -176,21 +197,25 @@ int vemu_write_vector(void* inst, uint32_t row, uint32_t elems, const uint32_t* 
     }
     return 0;
 }
-int vemu_get_csr(void* inst, uint32_t id, uint32_t* value) {
+int vemu_get_csr(void* inst, uint32_t id, uint32_t* value, char** error_msg) {
+    if (error_msg) *error_msg = nullptr;
     Emu* e = reinterpret_cast<Emu*>(inst);
-    if (id < 32) { // General registers
-        *value = e->cpuregs[id];
-        return 0;
+    // This is still a stub, but now with error message
+    if (id >= 4096) { // CSR address space
+        if (error_msg) asprintf(error_msg, "invalid CSR id 0x%x", id);
+        return -1;
     }
-    // TODO: Handle other CSRs
-    return -1;
+    *value = e->cpuregs[id]; // Placeholder logic
+    return 0;
 }
-int vemu_set_csr(void* inst, uint32_t id, uint32_t value) {
+int vemu_set_csr(void* inst, uint32_t id, uint32_t value, char** error_msg) {
+    if (error_msg) *error_msg = nullptr;
     Emu* e = reinterpret_cast<Emu*>(inst);
-     if (id < 32) {
-        e->cpuregs[id] = value;
-        return 0;
+    // This is still a stub, but now with error message
+    if (id >= 4096) { // CSR address space
+        if (error_msg) asprintf(error_msg, "invalid CSR id 0x%x", id);
+        return -1;
     }
-    // TODO: Handle other CSRs
-    return -1;
+    e->cpuregs[id] = value; // Placeholder logic
+    return 0;
 } 
