@@ -2,11 +2,15 @@ package main
 
 import (
 	"context"
-	"log"
 	"net"
+	"os"
 	"sync"
+	"time"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 
 	pb "github.com/yourorg/go-vemu/api/v1"
 	"github.com/yourorg/go-vemu/internal/core"
@@ -270,19 +274,40 @@ func (s *vemuServer) ClearBreakpoint(ctx context.Context, r *pb.BreakpointReques
 	return &pb.Status{Ok: true}, nil
 }
 
-// TODO: 其余 RPC (Run, Pause, TraceStream, etc.)
+func grpcLogger(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	startTime := time.Now()
+	resp, err := handler(ctx, req)
+	duration := time.Since(startTime)
 
-func main() {
-	lis, err := net.Listen("tcp", ":50051")
+	logger := log.Info()
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		logger = log.Error().Err(err)
 	}
 
-	grpcSrv := grpc.NewServer()
-	pb.RegisterVemuServiceServer(grpcSrv, newServer())
+	st, _ := status.FromError(err)
 
-	log.Println("Vemu gRPC server listening on :50051")
-	if err := grpcSrv.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+	logger.
+		Str("method", info.FullMethod).
+		Dur("duration", duration).
+		Str("status_code", st.Code().String()).
+		Msg("gRPC call")
+
+	return resp, err
+}
+
+func main() {
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339})
+
+	lis, err := net.Listen("tcp", ":50051")
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to listen")
+	}
+
+	s := grpc.NewServer(grpc.UnaryInterceptor(grpcLogger))
+	pb.RegisterVemuServiceServer(s, newServer())
+
+	log.Info().Str("address", lis.Addr().String()).Msg("Vemu gRPC server listening")
+	if err := s.Serve(lis); err != nil && err != grpc.ErrServerStopped {
+		log.Fatal().Err(err).Msg("failed to serve")
 	}
 }
