@@ -55,7 +55,11 @@ message LoadBinaryRequest    { uint32 addr   = 1; bytes data = 2; }
 message StepRequest          { uint64 cycles = 1; }   // 0 => 单指令
 message StepResponse         { uint64 cycles_executed = 1; }
 message RunRequest           { uint64 max_cycles = 1; } // max_cycles = 0 means run indefinitely
-message RunResponse          { uint64 cycles_executed = 1; bool ebreak = 2; }
+message RunResponse          {
+  uint64 cycles_executed = 1;
+  uint32 reason          = 2; // Corresponds to the StopReason enum in the core
+  bool   ebreak          = 3 [deprecated = true];
+}
 
 // ④ ─ 存储访问
 message ReadMemRequest       { uint32 addr  = 1; uint32 length = 2; }

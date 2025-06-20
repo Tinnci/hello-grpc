@@ -16,6 +16,7 @@ type execCmd struct {
 	cycles      uint64
 	single_step bool
 	reply       chan<- execResult
+	ctx         context.Context
 }
 
 type execResult struct {
@@ -70,6 +71,12 @@ func (s *vemuServer) execLoop() {
 
 		runLoop:
 			for totalExecuted < cyclesToRun {
+				// Check for cancellation before starting a new batch
+				if cmd.ctx != nil && cmd.ctx.Err() != nil {
+					finalReason = core.StopReasonPaused // Treat cancellation like a pause
+					break runLoop
+				}
+
 				batchCycles := cyclesToRun - totalExecuted
 				if !cmd.single_step && batchCycles > runBatchSize {
 					batchCycles = runBatchSize
@@ -126,7 +133,7 @@ func (s *vemuServer) LoadFirmware(ctx context.Context, r *pb.LoadFirmwareRequest
 func (s *vemuServer) Step(ctx context.Context, r *pb.StepRequest) (*pb.StepResponse, error) {
 	s.core.Pause(false)
 	replyCh := make(chan execResult, 1)
-	s.execCh <- execCmd{cycles: r.Cycles, single_step: true, reply: replyCh}
+	s.execCh <- execCmd{cycles: r.Cycles, single_step: true, reply: replyCh, ctx: ctx}
 	res := <-replyCh
 	return &pb.StepResponse{CyclesExecuted: res.executed}, res.err
 }
@@ -205,11 +212,18 @@ func (s *vemuServer) SetCSR(ctx context.Context, r *pb.SetCsrRequest) (*pb.Statu
 func (s *vemuServer) Run(ctx context.Context, r *pb.RunRequest) (*pb.RunResponse, error) {
 	s.core.Pause(false)
 	replyCh := make(chan execResult, 1)
-	s.execCh <- execCmd{cycles: r.MaxCycles, reply: replyCh}
+	s.execCh <- execCmd{cycles: r.MaxCycles, reply: replyCh, ctx: ctx}
 
 	res := <-replyCh
-	ebreak := res.reason == core.StopReasonBreakpoint || res.reason == core.StopReasonEbreak || res.reason == core.StopReasonPaused
-	return &pb.RunResponse{CyclesExecuted: res.executed, Ebreak: ebreak}, res.err
+
+	// Keep computing the deprecated ebreak for backward compatibility
+	ebreak := res.reason == core.StopReasonBp || res.reason == core.StopReasonEbreak || res.reason == core.StopReasonPaused
+
+	return &pb.RunResponse{
+		CyclesExecuted: res.executed,
+		Reason:         uint32(res.reason),
+		Ebreak:         ebreak,
+	}, res.err
 }
 
 func (s *vemuServer) Pause(ctx context.Context, _ *pb.Empty) (*pb.Status, error) {

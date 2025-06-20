@@ -5,11 +5,11 @@ import (
 )
 
 const (
-	StopReasonDone       = 0
-	StopReasonBreakpoint = 1
-	StopReasonPaused     = 2
-	StopReasonEbreak     = 3
-	StopReasonHostTrap   = 4
+	StopReasonDone     = 0 // VEMU_OK
+	StopReasonEbreak   = 1 // VEMU_EBREAK
+	StopReasonBp       = 2 // VEMU_BP
+	StopReasonPaused   = 3 // VEMU_PAUSED
+	StopReasonHostTrap = 4 // VEMU_TRAP
 )
 
 // Core 抽象，RPC 层只依赖该接口

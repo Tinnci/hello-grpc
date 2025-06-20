@@ -11,12 +11,7 @@
 
 using Emu = Venus_Emulator;
 
-// Stop reasons for vemu_run, must match core.go
-const int STOP_REASON_DONE = 0;
-const int STOP_REASON_BREAKPOINT = 1;
-const int STOP_REASON_PAUSED = 2;
-const int STOP_REASON_EBREAK = 3;
-const int STOP_REASON_HOST_TRAP = 4;
+// Stop reasons are now defined in core_bridge.h
 
 static std::string write_hex_to_tmp(const char* txt, int len) {
     char tmpl[] = "/tmp/vemu_hex_XXXXXX";
@@ -55,7 +50,7 @@ int vemu_run(void* inst, uint64_t n, const uint32_t* bps, int bps_len, uint64_t*
     for (; done < n || n == 0; ++done) {
         if (e->paused_.load(std::memory_order_relaxed)) {
             if (executed) *executed = done;
-            return STOP_REASON_PAUSED;
+            return VEMU_PAUSED;
         }
 
         e->emulate();
@@ -67,18 +62,18 @@ int vemu_run(void* inst, uint64_t n, const uint32_t* bps, int bps_len, uint64_t*
         if (e->ebreak || e->trap) {
             ++done;
             if (executed) *executed = done;
-            return e->ebreak ? STOP_REASON_EBREAK : STOP_REASON_HOST_TRAP;
+            return e->ebreak ? VEMU_EBREAK : VEMU_TRAP;
         }
 
         if (!breakpoints.empty() && breakpoints.count(e->pc)) {
             ++done;
             if (executed) *executed = done;
-            return STOP_REASON_BREAKPOINT;
+            return VEMU_BP;
         }
     }
 
     if (executed) *executed = done;
-    return STOP_REASON_DONE;
+    return VEMU_OK;
 }
 
 static inline bool is_scalar(uint32_t addr){ return addr < 0x100000; }

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef VEMU_CORE_BRIDGE_H
+#define VEMU_CORE_BRIDGE_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -6,6 +7,14 @@ extern "C" {
 
 #include <stdint.h>
 
+// Stop reason codes, must match go-vemu/internal/core/core.go
+#define VEMU_OK      0
+#define VEMU_EBREAK  1
+#define VEMU_BP      2
+#define VEMU_PAUSED  3
+#define VEMU_TRAP    4
+
+// Opaque pointer to the emulator instance
 void* vemu_new();
 void  vemu_delete(void* inst);
 
@@ -31,4 +40,6 @@ int vemu_set_csr(void* inst, uint32_t id, uint32_t value);
 
 #ifdef __cplusplus
 }
-#endif 
+#endif
+
+#endif // VEMU_CORE_BRIDGE_H 

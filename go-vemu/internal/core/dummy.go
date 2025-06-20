@@ -31,7 +31,7 @@ func (d *Dummy) Run(cycles uint64, breakpoints map[uint32]struct{}) (uint64, int
 		d.pc += 4
 		d.cycle++
 		if _, ok := breakpoints[d.pc]; ok {
-			return i + 1, StopReasonBreakpoint, nil
+			return i + 1, StopReasonBp, nil
 		}
 	}
 	return cycles, StopReasonDone, nil
