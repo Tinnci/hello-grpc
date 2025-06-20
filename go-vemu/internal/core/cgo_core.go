@@ -4,7 +4,7 @@
 package core
 
 /*
-#cgo LDFLAGS: -lvemu -lstdc++
+#cgo LDFLAGS: -L${SRCDIR}/../../../vemu_service/cgo_bridge -lvemu -lstdc++
 #include <stdint.h>
 // 未来将包含 "core_bridge.h"
 // 临时声明桥接函数，后续替换真实头文件

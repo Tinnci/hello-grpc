@@ -1,14 +1,14 @@
 CXX ?= g++
 AR  ?= ar
-CXXFLAGS ?= -std=c++17 -O2 -I..
+CXXFLAGS ?= -std=c++17 -O2 -fPIC -I.. -I../include
 
-SRC = core_bridge.cpp
+SRC = core_bridge.cpp ../src/RISCV.cpp ../src/venus_ext.cpp
 OBJ = $(SRC:.cpp=.o)
 
 libvemu.a: $(OBJ)
 	$(AR) rcs $@ $^
 
-%.o: %.cpp core_bridge.h
+%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
