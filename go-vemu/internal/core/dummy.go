@@ -30,3 +30,10 @@ func (d *Dummy) WriteMem(_ uint32, _ []byte) error          { return nil }
 func (d *Dummy) GetState() *v1.CpuState {
 	return &v1.CpuState{Pc: 0x0, Cycle: 0}
 }
+
+func (d *Dummy) GetRegs() ([]uint32, error) {
+	regs := make([]uint32, 32)
+	return regs, nil
+}
+
+func (d *Dummy) SetReg(_ uint32, _ uint32) error { return nil }

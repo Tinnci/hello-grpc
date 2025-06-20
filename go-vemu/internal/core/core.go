@@ -14,4 +14,7 @@ type Core interface {
 	WriteMem(addr uint32, data []byte) error
 	GetState() *v1.CpuState
 	Shutdown()
+	// Register access
+	GetRegs() ([]uint32, error)
+	SetReg(index uint32, value uint32) error
 }

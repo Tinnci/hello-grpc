@@ -101,3 +101,13 @@ func (c *cgoCore) GetState() *v1.CpuState {
 	}
 	return out
 }
+
+func (c *cgoCore) GetRegs() ([]uint32, error) {
+	st := c.GetState()
+	return st.Regs, nil
+}
+
+func (c *cgoCore) SetReg(index uint32, value uint32) error {
+	// TODO: add C API to set register; for now return not implemented
+	return fmt.Errorf("SetReg not implemented in cgo core")
+}

@@ -65,6 +65,46 @@ func (s *vemuServer) QueryState(ctx context.Context, _ *pb.Empty) (*pb.CpuState,
 	return s.core.GetState(), nil
 }
 
+// ────────────── Memory ──────────────
+func (s *vemuServer) ReadMemory(ctx context.Context, r *pb.ReadMemRequest) (*pb.ReadMemResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	data, err := s.core.ReadMem(r.Addr, r.Length)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.ReadMemResponse{Data: data}, nil
+}
+
+func (s *vemuServer) WriteMemory(ctx context.Context, r *pb.WriteMemRequest) (*pb.Status, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.core.WriteMem(r.Addr, r.Data); err != nil {
+		return &pb.Status{Ok: false, Message: err.Error()}, nil
+	}
+	return &pb.Status{Ok: true}, nil
+}
+
+// ────────────── Register access ──────────────
+func (s *vemuServer) GetRegs(ctx context.Context, _ *pb.Empty) (*pb.RegisterFile, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	regs, err := s.core.GetRegs()
+	if err != nil {
+		return nil, err
+	}
+	return &pb.RegisterFile{Regs: regs, Pc: s.core.GetState().Pc}, nil
+}
+
+func (s *vemuServer) SetReg(ctx context.Context, req *pb.SetRegRequest) (*pb.Status, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.core.SetReg(req.Index, req.Value); err != nil {
+		return &pb.Status{Ok: false, Message: err.Error()}, nil
+	}
+	return &pb.Status{Ok: true}, nil
+}
+
 // TODO: 其余 RPC (ReadMemory, WriteMemory, etc.)
 
 func main() {
