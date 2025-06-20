@@ -1,0 +1,25 @@
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+*.out
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Vendor directory
+vendor/
+
+# Build outputs
+pb/
+server_bin
+client_bin
+
+# Optional: Go module cache
+# Uncomment below to ignore the Go module cache
+# .go/pkg/ 
