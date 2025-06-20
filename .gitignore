@@ -23,3 +23,7 @@ client_bin
 # Optional: Go module cache
 # Uncomment below to ignore the Go module cache
 # .go/pkg/ 
+
+# vemu_service build artefacts
+vemu_service/cgo_bridge/*.o
+vemu_service/cgo_bridge/libvemu.a 
