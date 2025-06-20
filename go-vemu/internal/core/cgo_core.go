@@ -18,6 +18,8 @@ import (
 	"sync"
 	"unsafe"
 
+	"runtime/cgo"
+
 	v1 "github.com/yourorg/go-vemu/api/v1"
 )
 
@@ -26,17 +28,19 @@ import (
 
 //export go_trace_callback
 func go_trace_callback(user_data unsafe.Pointer, cycle C.uint64_t, pc C.uint32_t) {
-	// This function is called by C, so it must not panic.
-	// We recover from potential panics (e.g., writing to a closed channel).
-	defer func() {
-		recover()
-	}()
+	defer func() { recover() }()
 
-	ch_ptr := (*chan<- *v1.TraceEvent)(user_data)
-	if ch_ptr == nil {
+	if user_data == nil {
 		return
 	}
-	ch := *ch_ptr
+
+	// Reconstruct Go handle from pointer
+	h := cgo.Handle(uintptr(user_data))
+	v := h.Value()
+	ch, ok := v.(chan<- *v1.TraceEvent)
+	if !ok {
+		return
+	}
 
 	event := &v1.TraceEvent{
 		Cycle: uint64(cycle),
@@ -51,9 +55,10 @@ func go_trace_callback(user_data unsafe.Pointer, cycle C.uint64_t, pc C.uint32_t
 }
 
 type cgoCore struct {
-	inst    *C.void
-	traceCh chan<- *v1.TraceEvent
-	mu      sync.Mutex
+	inst        *C.void
+	traceCh     chan<- *v1.TraceEvent
+	traceHandle cgo.Handle
+	mu          sync.Mutex
 }
 
 func newCGO() (Core, error) {
@@ -103,8 +108,10 @@ func (c *cgoCore) Run(cycles uint64, breakpoints map[uint32]struct{}) (uint64, i
 	var userData unsafe.Pointer
 
 	if c.traceCh != nil {
+		// Create a handle pointing to traceCh for C callback.
+		c.traceHandle = cgo.NewHandle(c.traceCh)
 		cb = (C.trace_cb)(C.go_trace_callback)
-		userData = unsafe.Pointer(&c.traceCh)
+		userData = unsafe.Pointer(uintptr(c.traceHandle))
 	}
 
 	var bpsPtr *C.uint32_t
@@ -191,6 +198,11 @@ func (c *cgoCore) Pause(paused bool) {
 func (c *cgoCore) SetTraceChan(ch chan<- *v1.TraceEvent) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	// Release previous handle if exists
+	if c.traceHandle != 0 {
+		c.traceHandle.Delete()
+		c.traceHandle = 0
+	}
 	c.traceCh = ch
 }
 

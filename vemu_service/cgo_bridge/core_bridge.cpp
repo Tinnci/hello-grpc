@@ -13,14 +13,44 @@ using Emu = Venus_Emulator;
 
 // Stop reasons are now defined in core_bridge.h
 
-static std::string write_hex_to_tmp(const char* txt, int len) {
-    char tmpl[] = "/tmp/vemu_hex_XXXXXX";
-    int fd = mkstemp(tmpl);
-    if(fd == -1) return "";
-    FILE* fp = fdopen(fd, "w");
-    fwrite(txt, 1, len, fp);
-    fclose(fp);
-    return std::string(tmpl);
+static int load_hex_from_buffer(Emu* e, const char* text, int len){
+    if(!e || !text || len<=0) return -1;
+    size_t arraySize = 0;
+
+    const char* ptr = text;
+    const char* end = text + len;
+    char line[256];
+    while(ptr < end){
+        // 复制一行到 line
+        int idx = 0;
+        while(ptr < end && *ptr!='\n' && *ptr!='\r' && idx < 255){
+            line[idx++] = *ptr++;
+        }
+        // 跳过行结束符
+        while(ptr < end && (*ptr=='\n' || *ptr=='\r')) ptr++;
+        line[idx] = '\0';
+        if(idx==0) continue; // 空行
+
+        uint32_t value = 0;
+        if(sscanf(line, "%x", &value) != 1){
+            continue; // 非法行忽略
+        }
+
+        // 根据 Emulator::init_emulator 的逻辑决定放入位置
+        if(arraySize <= (e->TEXT_SECTION_LENGTH/4) - 1){
+            e->sram[arraySize] = value;
+        }
+        if(arraySize >= (e->DATA_SECTION_OFFSET/4) &&
+           arraySize <= ((e->DATA_SECTION_LENGTH + e->DATA_SECTION_OFFSET)/4)){
+            size_t dstIdx = (e->BLOCK_DSPM_OFFSET/4) + (arraySize - (e->DATA_SECTION_OFFSET/4));
+            e->sram[dstIdx] = value;
+        }
+        arraySize++;
+        if(arraySize >= CPU::SRAMSIZE){
+            break;
+        }
+    }
+    return 0;
 }
 
 void* vemu_new(){
@@ -35,10 +65,14 @@ void vemu_delete(void* inst){
 
 int vemu_load_hex(void* inst, const char* text, int len){
     if(!inst) return -1;
-    std::string path = write_hex_to_tmp(text,len);
-    if(path.empty()) return -2;
-    reinterpret_cast<Emu*>(inst)->init_emulator(const_cast<char*>(path.c_str()));
-    return 0;
+    Emu* e = reinterpret_cast<Emu*>(inst);
+    // 先初始化参数，与 init_emulator 中的行为保持一致
+    e->init_param();
+    e->pc = e->PROGADDR_RESET;
+    e->trap = false;
+    e->ebreak = false;
+
+    return load_hex_from_buffer(e, text, len);
 }
 
 int vemu_run(void* inst, uint64_t n, const uint32_t* bps, int bps_len, uint64_t* executed, trace_cb cb, void* user_data) {

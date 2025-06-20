@@ -129,9 +129,9 @@ func TestIntegration_Breakpoints(t *testing.T) {
 	if runResp.Reason != 2 { // StopReasonBp = 2
 		t.Fatalf("expected stop reason 2 (Breakpoint), got %d", runResp.Reason)
 	}
-	// Should have executed three instructions (pc 0,4,8)
-	if runResp.CyclesExecuted != 3 {
-		t.Errorf("CyclesExecuted = %d; want 3", runResp.CyclesExecuted)
+	// 应执行两条指令后在 PC=8 处命中断点
+	if runResp.CyclesExecuted != 2 {
+		t.Errorf("CyclesExecuted = %d; want 2", runResp.CyclesExecuted)
 	}
 
 	// Clear breakpoint and continue
