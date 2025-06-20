@@ -1,4 +1,7 @@
 #include "RISCV.h"
+
+#define printf(...) (void)0
+
 using namespace CPU;
 using namespace std;
 
@@ -819,7 +822,7 @@ void Emulator::decode_RV32M() {
     }
     case 0b10: {
       reg_op1 = this->signed_sim(this->cpuregs[this->rs1]);
-      reg_op2 = (this->cpuregs[this->rs2]);
+      reg_op2 = this->signed_sim(this->cpuregs[this->rs2]);
       this->cpuregs[this->rd] = (((reg_op1 * reg_op2) >> 32) & 0xFFFFFFFF);
       this->instr_name = (char *)"mulhsu";
       break;

@@ -144,3 +144,41 @@ func TestCGO_SetReg_InvalidIndex(t *testing.T) {
 	}
 	t.Logf("Received expected error: %v", err)
 }
+
+func BenchmarkRun(b *testing.B) {
+	core := New()
+	defer core.Shutdown()
+
+	// A simple loop program:
+	//   addi t0, zero, 1000
+	// loop:
+	//   addi t0, t0, -1
+	//   bne t0, zero, loop
+	//   ebreak
+	benchmarkHex := strings.Join([]string{
+		"3e800293", // addi t0, zero, 1000
+		"fff28293", // loop: addi t0, t0, -1
+		"fe029ee3", // bne t0, zero, -4
+		"00100073", // ebreak
+	}, "\n")
+
+	err := core.LoadHex([]byte(benchmarkHex))
+	if err != nil {
+		b.Fatalf("Failed to load hex: %v", err)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		core.Reset()
+		// The program has 1+1000*2 = 2001 instructions.
+		// Set a generous cycle limit to ensure it completes.
+		_, reason, err := core.Run(3000, nil)
+		if err != nil {
+			b.Fatalf("Run failed unexpectedly: %v", err)
+		}
+		if reason != StopReasonEbreak {
+			b.Fatalf("Run should stop with EBREAK, but got %v", reason)
+		}
+	}
+}

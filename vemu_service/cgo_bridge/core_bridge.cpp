@@ -150,7 +150,19 @@ int vemu_write(void* inst, uint32_t addr, uint32_t len, const uint8_t* in, char*
 
 void vemu_reset(void* inst){
     Emu* e = reinterpret_cast<Emu*>(inst);
-    e->init_param();
+    e->init_param(); // 重置 Venus 相关的参数
+
+    // 补充对基类 Emulator 状态的完整重置
+    e->pc = e->PROGADDR_RESET;
+    e->trap = false;
+    e->ebreak = false;
+
+    // 根据需要，还可以重置其他状态，例如寄存器
+    for(int i=0; i<32; ++i) {
+        e->cpuregs[i] = 0;
+    }
+    e->counter.cycle_count = 0;
+    e->counter.instr_count = 0;
 }
 
 void vemu_get_state(void* inst, uint32_t* regs32, uint32_t* pc, uint64_t* cycle){
