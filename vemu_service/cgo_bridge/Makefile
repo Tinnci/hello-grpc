@@ -13,3 +13,10 @@ libvemu.a: $(OBJ)
 
 clean:
 	rm -f $(OBJ) libvemu.a 
+
+TEST_SRC = ../tests/compare_decoder.cpp
+
+.PHONY: test_decoder
+
+test_decoder: libvemu.a $(TEST_SRC)
+	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_SRC) libvemu.a -o test_decoder 

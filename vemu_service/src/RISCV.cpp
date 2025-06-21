@@ -218,12 +218,12 @@ void Emulator::emulate() {
         if (decodedInst) {
           decodedInst->execute(this);
         } else {
-          // fallback 到旧实现
-          if ((((this->instr >> 25) & 0x7F) == 0b0) ||
-              (((this->instr >> 25) & 0x7F) == 0b0100000))
-            this->decode_arthimetic_reg();
-          else if ((((this->instr >> 25) & 0x7F) == 0b0000001))
+          // fallback 仅处理 M 扩展 (MUL/DIV 等)，其余 R-Type 均应由新解码器覆盖
+          if (((this->instr >> 25) & 0x7F) == 0b0000001) {
             this->decode_RV32M();
+          } else {
+            instruction_valid = false; // 不应发生，留作安全网
+          }
         }
       }
       break;
