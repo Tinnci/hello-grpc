@@ -677,232 +677,33 @@ void Emulator::decode_store() {
 }
 
 void Emulator::decode_arthimetic_imm() {
-  if (this->rd != 0) {
-    switch ((this->instr >> 12) & 0b111) {
-    case 0b0: {
-      this->cpuregs[this->rd] =
-          (this->cpuregs[this->rs1]) + (((this->instr >> 31) == 0)
-                                            ? this->instr >> 20
-                                            : (this->instr >> 20) | 0xFFFFF000);
-      this->instr_name = (char *)"addi";
-      break;
+    // legacy shim: forward to new generic Decoder
+    Decoder::Decoder decoder;
+    if (auto inst = decoder.decode(this->instr)) {
+        inst->execute(this);
     }
-    case 0b10: {
-      this->cpuregs[this->rd] =
-          this->signed_sim(this->cpuregs[this->rs1]) <
-          this->signed_sim(((this->instr >> 31) == 0)
-                               ? this->instr >> 20
-                               : (this->instr >> 20) | 0xFFFFF000);
-      this->instr_name = (char *)"slti";
-      break;
-    }
-    case 0b11: {
-      this->cpuregs[this->rd] =
-          (this->cpuregs[this->rs1]) < ((this->instr >> 31) == 0
-                                            ? this->instr >> 20
-                                            : (this->instr >> 20) | 0xFFFFF000);
-      this->instr_name = (char *)"sltiu";
-      break;
-    }
-    case 0b100: {
-      this->cpuregs[this->rd] =
-          ((this->cpuregs[this->rs1]) ^
-           (((this->instr >> 31) == 0) ? this->instr >> 20
-                                       : (this->instr >> 20) | 0xFFFFF000));
-      this->instr_name = (char *)"xori";
-      break;
-    }
-    case 0b110: {
-      this->cpuregs[this->rd] =
-          (this->cpuregs[this->rs1]) |
-          (((this->instr >> 31) == 0) ? this->instr >> 20
-                                      : (this->instr >> 20) | 0xFFFFF000);
-      this->instr_name = (char *)"ori";
-      break;
-    }
-    case 0b111: {
-      this->cpuregs[this->rd] =
-          (this->cpuregs[this->rs1]) &
-          (((this->instr >> 31) == 0) ? this->instr >> 20
-                                      : (this->instr >> 20) | 0xFFFFF000);
-      this->instr_name = (char *)"andi";
-      break;
-    }
-    case 0b001: {
-      this->cpuregs[this->rd] = this->signed_sim(this->cpuregs[this->rs1])
-                                << ((this->instr >> 20) & 0x1F);
-      this->instr_name = (char *)"slli";
-      break;
-    }
-    case 0b101: {
-      if (((this->instr >> 25) & 0x7F) == 0b0) {
-        this->cpuregs[this->rd] =
-            this->cpuregs[this->rs1] >> ((this->instr >> 20) & 0x1F);
-        this->instr_name = (char *)"srli";
-      } else if (((this->instr >> 25) & 0x7F) == 0b100000) {
-        int srai_temp = this->signed_sim(this->cpuregs[this->rs1]);
-        this->cpuregs[this->rd] = srai_temp >> ((this->instr >> 20) & 0x1F);
-        this->instr_name = (char *)"srai";
-      }
-      break;
-    }
-    }
-  }
-  this->next_pc = this->pc + 4;
+    this->next_pc = this->pc + 4;
+    this->instr_name = (char *)"[legacy shim: I-Type]";
 }
 
 void Emulator::decode_arthimetic_reg() {
-  if (this->rd != 0) {
-    switch ((this->instr >> 12) & 0b111) {
-    case 0b0: {
-      if (((this->instr >> 25) & 0x7F) == 0b0) {
-        this->cpuregs[this->rd] = this->signed_sim(this->cpuregs[this->rs1]) +
-                                  this->signed_sim(this->cpuregs[this->rs2]);
-        this->instr_name = (char *)"add";
-      } else if (((this->instr >> 25) & 0x7F) == 0b0100000) {
-        this->cpuregs[this->rd] = this->signed_sim(this->cpuregs[this->rs1]) -
-                                  this->signed_sim(this->cpuregs[this->rs2]);
-        this->instr_name = (char *)"sub";
-      }
-      break;
+    // legacy shim: forward to new generic Decoder
+    Decoder::Decoder decoder;
+    if (auto inst = decoder.decode(this->instr)) {
+        inst->execute(this);
     }
-    case 0b1: {
-      this->cpuregs[this->rd] = this->signed_sim(this->cpuregs[this->rs1])
-                                << (this->cpuregs[this->rs2] & 0x1F);
-      this->instr_name = (char *)"sll";
-      break;
-    }
-    case 0b10: {
-      this->cpuregs[this->rd] = this->signed_sim(this->cpuregs[this->rs1]) <
-                                this->signed_sim(this->cpuregs[this->rs2]);
-      this->instr_name = (char *)"slt";
-      break;
-    }
-    case 0b11: {
-      this->cpuregs[this->rd] =
-          (this->cpuregs[this->rs1]) < (this->cpuregs[this->rs2]);
-      this->instr_name = (char *)"sltu";
-      break;
-    }
-    case 0b100: {
-      this->cpuregs[this->rd] =
-          this->cpuregs[this->rs1] ^ this->cpuregs[this->rs2];
-      this->instr_name = (char *)"xor";
-      break;
-    }
-    case 0b110: {
-      this->cpuregs[this->rd] =
-          this->cpuregs[this->rs1] | this->cpuregs[this->rs2];
-      this->instr_name = (char *)"or";
-      break;
-    }
-    case 0b111: {
-      this->cpuregs[this->rd] =
-          this->cpuregs[this->rs1] & this->cpuregs[this->rs2];
-      this->instr_name = (char *)"and";
-      break;
-    }
-    case 0b101: {
-      if (((this->instr >> 25) & 0x7F) == 0b0) {
-        this->cpuregs[this->rd] =
-            this->cpuregs[this->rs1] >> (this->cpuregs[this->rs2] & 0x1F);
-        this->instr_name = (char *)"srl";
-      } else if (((this->instr >> 25) & 0x7F) == 0b0100000) {
-        int sra_temp = this->signed_sim(this->cpuregs[this->rs1]);
-        this->cpuregs[this->rd] =
-            sra_temp >> ((this->cpuregs[this->rs2] & 0x1F));
-        this->instr_name = (char *)"sra";
-      }
-      break;
-    }
-    }
-  }
-  this->next_pc = this->pc + 4;
+    this->next_pc = this->pc + 4;
+    this->instr_name = (char *)"[legacy shim: R-Type]";
 }
 
 void Emulator::decode_RV32M() {
-  if (this->rd != 0) {
-    uint64_t reg_op1, reg_op2;
-    switch ((this->instr >> 12) & 0b111) {
-    case 0b0: {
-      reg_op1 = this->signed_sim(this->cpuregs[this->rs1]);
-      reg_op2 = this->signed_sim(this->cpuregs[this->rs2]);
-      this->cpuregs[this->rd] = (reg_op1 * reg_op2) & 0xFFFFFFFF;
-      this->instr_name = (char *)"mul";
-      break;
+    // legacy shim: forward to new generic Decoder (MulDiv etc.)
+    Decoder::Decoder decoder;
+    if (auto inst = decoder.decode(this->instr)) {
+        inst->execute(this);
     }
-    case 0b1: {
-      reg_op1 = this->signed_sim(this->cpuregs[this->rs1]);
-      reg_op2 = this->signed_sim(this->cpuregs[this->rs2]);
-      this->cpuregs[this->rd] = (((reg_op1 * reg_op2) >> 32) & 0xFFFFFFFF);
-      this->instr_name = (char *)"mulh";
-      break;
-    }
-    case 0b10: {
-      reg_op1 = this->signed_sim(this->cpuregs[this->rs1]);
-      reg_op2 = this->signed_sim(this->cpuregs[this->rs2]);
-      this->cpuregs[this->rd] = (((reg_op1 * reg_op2) >> 32) & 0xFFFFFFFF);
-      this->instr_name = (char *)"mulhsu";
-      break;
-    }
-    case 0b11: {
-      reg_op1 = (this->cpuregs[this->rs1]);
-      reg_op2 = (this->cpuregs[this->rs2]);
-      this->cpuregs[this->rd] = (((reg_op1 * reg_op2) >> 32) & 0xFFFFFFFF);
-      this->instr_name = (char *)"mulhu";
-      break;
-    }
-    case 0b100: {
-      int div_reg_op1 = this->signed_sim(this->cpuregs[this->rs1]);
-      int div_reg_op2 = this->signed_sim(this->cpuregs[this->rs2]);
-      if (div_reg_op2 == 0) {
-        this->cpuregs[this->rd] = 0xFFFFFFFF;
-      } else if (div_reg_op1 == (signed)(-0x80000000) && div_reg_op2 == -1) {
-        // } else if (div_reg_op1 == -0x80000000 && div_reg_op2 == -1) {
-        this->cpuregs[this->rd] = -0x80000000;
-      } else {
-        this->cpuregs[this->rd] = div_reg_op1 / div_reg_op2;
-      }
-      this->instr_name = (char *)"div";
-      break;
-    }
-    case 0b101: {
-      reg_op1 = (this->cpuregs[this->rs1]);
-      reg_op2 = (this->cpuregs[this->rs2]);
-      if (reg_op2 == 0) {
-        this->cpuregs[this->rd] = 0xFFFFFFFF;
-      } else {
-        this->cpuregs[this->rd] = reg_op1 / reg_op2;
-      }
-      this->instr_name = (char *)"divu";
-      break;
-    }
-    case 0b110: {
-      int rem_op1 = this->signed_sim(this->cpuregs[this->rs1]);
-      int rem_op2 = this->signed_sim(this->cpuregs[this->rs2]);
-      if (rem_op2 == 0)
-        this->cpuregs[this->rd] = rem_op1;
-      // else if (rem_op1 == -0x80000000 && rem_op2 == -1)
-      else if (rem_op1 == (signed)(-0x80000000) && rem_op2 == -1)
-        this->cpuregs[this->rd] = 0;
-      else
-        this->cpuregs[this->rd] = rem_op1 % rem_op2;
-      this->instr_name = (char *)"rem";
-      break;
-    }
-    case 0b111: {
-      reg_op1 = (this->cpuregs[this->rs1]);
-      reg_op2 = (this->cpuregs[this->rs2]);
-      if (reg_op2 == 0)
-        this->cpuregs[this->rd] = (reg_op1);
-      else
-        this->cpuregs[this->rd] = reg_op1 % reg_op2;
-      this->instr_name = (char *)"remu";
-      break;
-    }
-    }
-  }
-  this->next_pc = this->pc + 4;
+    this->next_pc = this->pc + 4;
+    this->instr_name = (char *)"[legacy shim: M-Ext]";
 }
 
 void Emulator::decode_IRQ() {
