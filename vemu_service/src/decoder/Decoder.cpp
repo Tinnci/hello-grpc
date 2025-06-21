@@ -3,6 +3,7 @@
 #include "decoder/ArithmeticRInstruction.h"
 #include "decoder/MulDivInstruction.h"
 #include "decoder/ITypeImmInstruction.h"
+#include "decoder/CsrInstruction.h"
 
 namespace Decoder {
 
@@ -23,6 +24,14 @@ std::unique_ptr<Instruction> Decoder::decode(uint32_t word) {
     // I-Type immediate arithmetic
     if (opcode == 0b0010011) {
         return std::make_unique<ITypeImmInstruction>(word);
+    }
+
+    if (opcode == 0b1110011) {
+        uint8_t funct3 = (word >> 12) & 0x7;
+        if (funct3 == 0b001 || funct3 == 0b010 || funct3 == 0b011 ||
+            funct3 == 0b101 || funct3 == 0b110 || funct3 == 0b111) {
+            return std::make_unique<CsrInstruction>(word);
+        }
     }
 
     // 其他指令暂未实现，返回 nullptr 触发旧路径

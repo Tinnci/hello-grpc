@@ -9,6 +9,7 @@
 #include <climits>
 #include <iostream>
 #include <bitset>
+#include "csr/CsrFile.h"
 
 namespace RISCV
 {
@@ -90,6 +91,8 @@ public:
     {
         char *debug_task_name;
     } taskinfo;
+
+    CsrFile csr;  // 新增 CSR 文件
 
     char regname[32][6] = {"zero", "ra", "sp", "gp", "tp",
                            "t0", "t1", "t2", "s0", "s1",
