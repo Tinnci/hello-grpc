@@ -30,3 +30,6 @@ vemu_service/cgo_bridge/libvemu.a
 vemu_service/src/*.o 
 
 *_run.txt
+
+# vemu_service test executables
+vemu_service/cgo_bridge/test_decoder*
