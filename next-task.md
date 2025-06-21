@@ -78,6 +78,21 @@
     *   **Go 的链接不受影响**: Go 代码中的 CGo 指令指定链接 `libvemu.a`，只要库文件正确生成和放置，Go 的链接过程完全一样。
     *   **代码规范**: 建议顺手加 `clang-tidy` / `cpplint` 到 CI。
 
+## ✅ 进度概览（2025-06）
+目前已完成的重要里程碑：
+1. **Task 5 － 标准陷阱流程**
+   * 清理旧 `rdcycle`/`decode_IRQ` 等死代码。
+   * 新增 `raise_trap()`，实现 `EBREAK/MRET`，并扩展 `mepc/mcause/mtvec/mstatus` 等 CSR。
+   * 端到端 `trap_flow_test` 全绿通过。
+2. **Task 6 － 内存子系统与 Load/Store 迁移**
+   * 引入 `Mem::MMU`（支持字节/半字/字访问，含 `PRINTF_ADDR` MMIO）。
+   * 迁移全部 `LB/LH/LW/LBU/LHU/SB/SH/SW` 指令到新解码器。
+   * `memory_access_test` 1000 轮随机验证通过。
+
+> 以上改动均已合并到 `refactor/instruction-dispatch` 分支并通过所有 Go/C++ 回归测试。
+
+---
+
 ## 总结与行动计划
 
 **行动路线图:**
