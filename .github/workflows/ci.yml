@@ -30,8 +30,9 @@ jobs:
         # 编译所有 C++ 测试目标（Makefile 已定义 PHONY 目标）
         make -C vemu_service/cgo_bridge \
           test_trap test_mem \
-          test_decoder_branch test_decoder_jal test_decoder_jalr \
-          test_decoder_csr test_decoder_i test_decoder_m
+          test_isa test_interrupt test_mret \
+          test_trap_illegal test_trap_misaligned \
+          test_decoder_csr
         # 逐个执行生成的测试可执行文件
         for t in vemu_service/cgo_bridge/test_*; do
           echo "Running $t";
