@@ -17,6 +17,13 @@ constexpr uint16_t CSR_MIE     = 0x304;
 constexpr uint16_t CSR_MTVEC   = 0x305;
 constexpr uint16_t CSR_MEPC    = 0x341;
 constexpr uint16_t CSR_MCAUSE  = 0x342;
+constexpr uint16_t CSR_MIP     = 0x344;
+constexpr uint16_t CSR_MTVAL   = 0x343;
+constexpr uint32_t MSTATUS_MIE = 1u << 3;   // Machine Interrupt Enable
+constexpr uint32_t MIP_MEIP   = 1u << 11;  // Machine External Interrupt Pending
+constexpr uint32_t MIE_MEIE   = 1u << 11;  // Machine External Interrupt Enable
+constexpr uint32_t MSTATUS_MPIE = 1u << 7;   // Previous MIE
+constexpr uint32_t MSTATUS_MPP_MASK = 0b11u << 11; // Bits 12:11
 }
 
 class CsrFile {

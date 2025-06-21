@@ -391,15 +391,27 @@ void Emulator::emulate() {
   }
 
   if (instruction_valid == false) {
-    printf("%s\n", this->instr_name);
-    printf("Encountered illegal instructions!\n");
-    printf("Current PC is %08x\n", this->pc);
-    std::cout << "This illegal instruction is " << hex << this->instr << ", "
-              << bitset<32>(this->instr) << endl;
-    exit(EXIT_FAILURE);
+    // Illegal instruction trap
+    this->raise_trap(2); // cause code 2 = illegal instruction
   }
+  // 在提交 PC 之前检查中断
+  this->check_interrupts();
   // update pc
   this->pc = this->next_pc;
+}
+
+void Emulator::check_interrupts() {
+    using namespace CSR;
+    uint32_t mstatus = this->csr.read(CSR_MSTATUS, this);
+    uint32_t mie     = this->csr.read(CSR_MIE, this);
+    uint32_t mip     = this->csr.read(CSR_MIP, this);
+
+    bool global_en   = mstatus & MSTATUS_MIE;
+    uint32_t pending = mie & mip;
+    if (global_en && pending) {
+        // 触发 Machine-External-Interrupt (MEI) = cause 11 | interrupt bit
+        this->raise_trap(0x8000000B);
+    }
 }
 
 void Emulator::decode_lui() {
@@ -518,12 +530,28 @@ void Emulator::decode_IRQ() {
 const char* cause_names[] = {"misaligned_fetch","fault_fetch","illegal","breakpoint","load_misaligned","load_fault","store_misaligned","store_fault"}; // minimal list
 
 void Emulator::raise_trap(uint32_t cause_code) {
+  using namespace CSR;
   // Save faulting PC
-  this->csr.write(CSR::CSR_MEPC, this->pc);
+  this->csr.write(CSR_MEPC, this->pc);
   // Record cause
-  this->csr.write(CSR::CSR_MCAUSE, cause_code);
+  this->csr.write(CSR_MCAUSE, cause_code);
+  // mtval logic
+  uint32_t mtval = 0;
+  switch (cause_code) {
+    case 2: // illegal instruction
+      mtval = this->instr;
+      break;
+    case 4: // load misalign
+    case 6: // store misalign
+      mtval = this->load_store_addr;
+      break;
+    default:
+      mtval = 0;
+  }
+  this->csr.write(CSR_MTVAL, mtval);
+
   // Jump to mtvec
-  uint32_t tvec = this->csr.read(CSR::CSR_MTVEC, this);
+  uint32_t tvec = this->csr.read(CSR_MTVEC, this);
   this->next_pc = tvec;
   this->instr_name = (char*)"trap";
   this->trap = true;

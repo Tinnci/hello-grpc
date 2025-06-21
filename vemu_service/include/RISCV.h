@@ -108,10 +108,24 @@ public:
     virtual void init_param() = 0;
     void emulate();
 
-    // private:
-
-    // 旧解码函数已彻底移除，保留声明会导致未定义引用
+    // 对外暴露，用于指令执行发起 trap
     void raise_trap(uint32_t cause_code);
+
+    // ===== Memory access virtuals =====
+    virtual uint32_t read_word(uint32_t addr);
+    virtual void     write_word(uint32_t addr, uint32_t data);
+
+    virtual int8_t   read_byte(int32_t addr);
+    virtual uint8_t  read_byte_u(uint32_t addr);
+    virtual int16_t  read_half(int32_t addr);
+    virtual uint16_t read_half_u(uint32_t addr);
+
+    virtual void write_byte(uint32_t addr, uint8_t data);
+    virtual void write_half(uint32_t addr, uint16_t data);
+
+protected:
+    void check_interrupts();
+
     [[deprecated("legacy IRQ shim; will be removed once trap() is implemented")]] void decode_IRQ();
 
     // 仍在使用的 legacy 指令辅助函数（计划后续移除）
@@ -126,18 +140,7 @@ public:
 
     char *getRISCVRegABI(int id);
 
-    // ===== Memory access virtuals (Task 7.1) =====
-    // 默认实现回退到 SRAM/MMIO；子类如 Venus_Emulator 可以覆写以处理专有地址空间。
-    virtual uint32_t read_word(uint32_t addr);
-    virtual void     write_word(uint32_t addr, uint32_t data);
-
-    virtual int8_t   read_byte(int32_t addr);
-    virtual uint8_t  read_byte_u(uint32_t addr);
-    virtual int16_t  read_half(int32_t addr);
-    virtual uint16_t read_half_u(uint32_t addr);
-
-    virtual void write_byte(uint32_t addr, uint8_t data);
-    virtual void write_half(uint32_t addr, uint16_t data);
+    // 以上内存访问虚函数已提升至 public，确保 MMU 等外部类可调用
 };
 
 #endif

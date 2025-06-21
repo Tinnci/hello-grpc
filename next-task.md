@@ -124,3 +124,29 @@
 *   **里程碑 2**: I-Type/B-Type/S-Type 完成迁移，删除旧 switch。
 *   **里程碑 3**: CSR 基础子集实现，可跑简易 OS 的 `ecall`, `mret`。
 *   **里程碑 4**: LR/SC + AMO.w，支持多线程同步原语。 
+
+<!-- === 阶段 2：CSR & 中断深化（2025-06） === -->
+
+## 阶段 2：CSR & 中断深化
+> 建议创建新功能分支：`feature/interrupt-basic` 以保持 `refactor/instruction-dispatch` 的稳定。
+
+### 目标
+1. 精确实现 `mstatus`、`mie`、`mip` 位语义。
+2. 在主循环末尾添加 `check_interrupts()`，能触发 `raise_trap(0x80000007)`（外部中断）。
+3. 单测 `interrupt_basic.cpp`：
+   * 随机置位 `mie` & `mip`，验证 `mstatus.MIE` 控制是否正确。
+   * 检查 `mcause` / `mepc` / `mtvec` 更新。
+4. CI 通过后合并回 `refactor/instruction-dispatch`。
+
+### 任务拆分
+- [ ] **数据结构**：在 `CsrFile` 内部新增专用字段或位运算帮助函数，读写时解析各位。
+- [ ] **写入行为**：`CsrFile::write()` 针对 `mstatus`、`mie`、`mip` 做位级更新。
+- [ ] **中断判定**：`Emulator::check_interrupts()` 判断 `mstatus.MIE && (mie & mip)`，调用 `raise_trap()`。
+- [ ] **PC 跳转**：在 `raise_trap` 内部读取 `mtvec` 实现跳转。
+- [ ] **单元测试**：新增 `tests/interrupt_basic.cpp` 并在 Makefile 加 `test_interrupt` 目标。
+
+### 分支/提交策略
+1. `git checkout -b feature/interrupt-basic`。
+2. 分步骤小 commit：数据结构→写入→判定→测试→CI。
+3. 全绿后 `git merge --no-ff` 回 `refactor/instruction-dispatch`。
+4. 最后从 `refactor/instruction-dispatch` 合并至 `main`。 

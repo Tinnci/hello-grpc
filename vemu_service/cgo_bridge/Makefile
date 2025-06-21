@@ -73,3 +73,31 @@ test_isa: test_isa_r test_isa_i test_isa_m
 
 .PHONY: all
 all: libvemu.a 
+
+TEST_INT_SRC = ../tests/interrupt_basic.cpp
+
+.PHONY: test_interrupt
+
+test_interrupt: libvemu.a $(TEST_INT_SRC)
+	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_INT_SRC) libvemu.a -o test_interrupt 
+
+TEST_MRET_SRC = ../tests/interrupt_mret.cpp
+
+.PHONY: test_mret
+
+test_mret: libvemu.a $(TEST_MRET_SRC)
+	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_MRET_SRC) libvemu.a -o test_mret 
+
+TEST_ILLEGAL_SRC = ../tests/trap_illegal.cpp
+
+.PHONY: test_trap_illegal
+
+test_trap_illegal: libvemu.a $(TEST_ILLEGAL_SRC)
+	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_ILLEGAL_SRC) libvemu.a -o test_trap_illegal 
+
+TEST_MISALIGN_SRC = ../tests/trap_misaligned.cpp
+
+.PHONY: test_trap_misaligned
+
+test_trap_misaligned: libvemu.a $(TEST_MISALIGN_SRC)
+	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_MISALIGN_SRC) libvemu.a -o test_trap_misaligned 
