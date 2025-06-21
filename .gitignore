@@ -27,9 +27,13 @@ client_bin
 # vemu_service build artefacts
 vemu_service/cgo_bridge/*.o
 vemu_service/cgo_bridge/libvemu.a
-vemu_service/src/*.o 
+# 通配全部 vemu_service/src 下生成的 .o（包括子目录）
+vemu_service/src/**/*.o
 
 *_run.txt
 
 # vemu_service test executables
 vemu_service/cgo_bridge/test_decoder*
+
+# trap 测试可执行
+vemu_service/cgo_bridge/test_trap
