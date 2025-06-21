@@ -2771,12 +2771,12 @@ void Venus_Emulator::venus_execute() {
           // vs2vd1 = (signed int8_t)((this->VENUS_DSPM[vs2_row][vs2_bank] &
           // (vs2_mask))) *
           //          (signed int8_t)((this->VENUS_DSPM[vd1_row][vd1_bank] &
-          //          (vd1_mask)));
-          // temp_vs2vd1 = (vs2vd1 >> this->MY_VENUS_INS_PARAM.vfu_shamt) & ((1
-          // << ((this->MY_VENUS_INS_PARAM.vew + 1) << 3)) - 1); int16_t
-          // sum_real = temp_vs1vd2 - temp_vs2vd1; int16_t sum_imag =
-          // temp_vs1vd1 + temp_vs2vd2; int16_t sum_real = temp_vs1vd1 -
-          // temp_vs2vd2; int16_t sum_imag = temp_vs1vd2 + temp_vs2vd1;
+          //          (vd1_mask))) &
+          //          ((1 << ((this->MY_VENUS_INS_PARAM.vew + 1) << 3)) - 1);
+          // int16_t sum_real = temp_vs1vd2 - temp_vs2vd1;
+          // int16_t sum_imag = temp_vs1vd1 + temp_vs2vd2;
+          // int16_t sum_real = temp_vs1vd1 - temp_vs2vd2;
+          // int16_t sum_imag = temp_vs1vd2 + temp_vs2vd1;
 
           this->VENUS_DSPM[vd1_row][vd1_bank] =
               (this->VENUS_DSPM[vd1_row][vd1_bank] & (~vd1_mask)) +
@@ -3537,11 +3537,11 @@ emulate_start:
     this->ebreak = true;
     this->irq = this->irq | 0x00000002;
     this->instr_name = (char *)"ebreak";
-    printf("The emulator is already stoped!\n");
+    if(this->verbose) printf("The emulator is already stoped!\n");
   } else
     this->trap = false;
   if (this->trap == true) {
-    printf("TRAP!\n");
+    if(this->verbose) printf("TRAP!\n");
   } else {
     switch (this->instr & 0x7F) {
     case 0b0110111: {

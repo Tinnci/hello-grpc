@@ -7,7 +7,7 @@ using namespace CPU;
 using namespace std;
 
 Emulator::Emulator() {
-  this->verbose = true;
+  this->verbose = false; // 默认静默，调试时手动开启
   this->trap_cycle = 0;
   // irq
   this->irq_mask = 0xffffffff;
@@ -175,7 +175,7 @@ void Emulator::emulate() {
 #endif
     this->trap = false;
   if (this->trap == true) {
-    printf("TRAP!\n");
+    if (this->verbose) printf("TRAP!\n");
   } else {
     switch (this->instr & 0x7F) {
     case 0b0110111: {
@@ -754,7 +754,7 @@ int Emulator::remainderDivision(int dividend, int divisor) {
   return sign * udividend;
 }
 
-char *Emulator::getRISCVRegABI(int id) { return regname[id]; }
+char *Emulator::getRISCVRegABI(int id) { return (id >=0 && id < 36) ? regname[id] : (char*)"unk"; }
 
 uint32_t Emulator::read_word(uint32_t addr) {
     // 默认实现：SRAM + MMIO

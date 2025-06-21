@@ -1,6 +1,6 @@
 CXX ?= g++
 AR  ?= ar
-CXXFLAGS ?= -std=c++17 -O2 -fPIC -I.. -I../include
+CXXFLAGS ?= -std=c++17 -O2 -fPIC -I.. -I../include -Wno-unused-result
 
 SRC = core_bridge.cpp \
       ../src/RISCV.cpp \
@@ -94,3 +94,6 @@ TEST_BRANCH_SRC = ../tests/compare_decoder_branch.cpp
 
 test_decoder_branch: libvemu.a $(TEST_BRANCH_SRC)
 	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_BRANCH_SRC) libvemu.a -o test_decoder_branch 
+
+.PHONY: all
+all: libvemu.a 
