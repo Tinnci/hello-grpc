@@ -37,3 +37,5 @@ vemu_service/cgo_bridge/test_decoder*
 
 # trap 测试可执行
 vemu_service/cgo_bridge/test_trap
+
+vemu_service/cgo_bridge/test_mem
