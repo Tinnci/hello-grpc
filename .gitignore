@@ -39,3 +39,5 @@ vemu_service/cgo_bridge/test_decoder*
 vemu_service/cgo_bridge/test_trap
 
 vemu_service/cgo_bridge/test_mem
+
+/*_test
