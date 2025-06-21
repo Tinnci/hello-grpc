@@ -118,7 +118,8 @@ public:
     void decode_arthimetic_imm();
     void decode_arthimetic_reg();
     void decode_RV32M();
-    void decode_IRQ();
+    void [[deprecated("legacy IRQ shim; will be removed once trap() is implemented")]] decode_IRQ();
+    void raise_trap(uint32_t cause_code);
 
     void panic(const char *format, ...);
     int integerDivision(int dividend, int divisor);

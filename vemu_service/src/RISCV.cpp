@@ -21,6 +21,12 @@ Emulator::Emulator() {
   for (int i = 0; i < CPU::SRAMSIZE; ++i) {
     this->sram[i] = 0;
   }
+  // initialize machine-level CSRs to 0
+  this->csr.write(CSR::CSR_MSTATUS, 0);
+  this->csr.write(CSR::CSR_MIE, 0);
+  this->csr.write(CSR::CSR_MTVEC, 0);
+  this->csr.write(CSR::CSR_MEPC, 0);
+  this->csr.write(CSR::CSR_MCAUSE, 0);
 }
 
 Emulator::~Emulator() {}
@@ -160,11 +166,13 @@ void Emulator::emulate() {
   //   instruction_valid = true;
   //   this->next_pc = this->pc + 4; // irq instruction, for test
   // }
+#if 0
   if (this->instr == 0x00100073) {
     this->irq = this->irq | 0x00000002;
     this->instr_name = (char *)"ebreak";
     printf("The emulator is already stoped!\n");
   } else
+#endif
     this->trap = false;
   if (this->trap == true) {
     printf("TRAP!\n");
@@ -204,7 +212,7 @@ void Emulator::emulate() {
       instruction_valid = true;
       this->decode_store();
       break;
-    } // store
+    }
     case 0b0010011: {
       instruction_valid = true;
       {
@@ -241,6 +249,19 @@ void Emulator::emulate() {
       this->decode_IRQ();
       break;
     }
+    case 0b1110011: {
+        instruction_valid = true;
+        {
+            Decoder::Decoder decoder;
+            auto decodedInst = decoder.decode(this->instr);
+            if (decodedInst) {
+                decodedInst->execute(this);
+            } else {
+                instruction_valid = false; // 未知 SYSTEM 指令将由后续 trap 处理
+            }
+        }
+        break;
+    }
 
     // venus extension
     case 0b1011011: {
@@ -249,6 +270,7 @@ void Emulator::emulate() {
     }
     }
   }
+#if 0 // legacy CSR read fast-path (handled by CsrInstruction now)
   if (((this->instr & 0x7F) == 0b1110011 &&
        ((this->instr & 0xfffff000) == 0b11000000000000000010000000000000)) ||
       (((this->instr & 0x7F) == 0b1110011) &&
@@ -284,6 +306,7 @@ void Emulator::emulate() {
     this->instr_name = (char *)"rdinstrh";
     this->next_pc = this->pc + 4;
   }
+#endif // legacy CSR fast-path
   this->counter.cycle_count++;
   this->counter.instr_count++;
   if (timer == 1) {
@@ -707,43 +730,23 @@ void Emulator::decode_RV32M() {
 }
 
 void Emulator::decode_IRQ() {
-  switch ((this->instr >> 25) & 0x7F) {
-  case 0b0000010: {
-    this->next_pc = this->cpuregs[32];
-    this->instr_name = (char *)"retirq";
-    this->irq_active = false;
-    break;
-  }
-  case 0b0000100: {
-    this->next_pc = this->pc;
-    this->instr_name = (char *)"waitirq";
-    break;
-  }
-  case 0b0000000: {
-    this->cpuregs[this->rd] = this->cpuregs[this->rs1];
-    this->instr_name = (char *)"getq";
-    break;
-  }
-  case 0b0000001: {
-    this->rd = this->rd + 32;
-    this->cpuregs[this->rd] = this->cpuregs[this->rs1];
-    this->instr_name = (char *)"setq";
-    break;
-  }
-  case 0b0000011: {
-    this->cpuregs[this->rd] = this->irq_mask;
-    this->irq_mask = this->cpuregs[this->rs1];
-    this->instr_name = (char *)"maskirq";
-    break;
-  }
-  case 0b0000101: {
-    this->cpuregs[this->rd] = this->timer;
-    this->timer = this->cpuregs[this->rs1];
-    this->instr_name = (char *)"timer";
-    break;
-  }
-  }
-  this->next_pc = this->pc + 4;
+    // legacy shim：保持符号可链接，但不再执行任何逻辑
+    this->instr_name = (char *)"[legacy IRQ noop]";
+    this->next_pc = this->pc + 4;
+}
+
+char* cause_names[] = {"misaligned_fetch","fault_fetch","illegal","breakpoint","load_misaligned","load_fault","store_misaligned","store_fault"}; // minimal list
+
+void Emulator::raise_trap(uint32_t cause_code) {
+  // Save faulting PC
+  this->csr.write(CSR::CSR_MEPC, this->pc);
+  // Record cause
+  this->csr.write(CSR::CSR_MCAUSE, cause_code);
+  // Jump to mtvec
+  uint32_t tvec = this->csr.read(CSR::CSR_MTVEC, this);
+  this->next_pc = tvec;
+  this->instr_name = (char*)"trap";
+  this->trap = true;
 }
 
 // 32bits signed

@@ -4,6 +4,8 @@
 #include "decoder/MulDivInstruction.h"
 #include "decoder/ITypeImmInstruction.h"
 #include "decoder/CsrInstruction.h"
+#include "decoder/EbreakInstruction.h"
+#include "decoder/MretInstruction.h"
 
 namespace Decoder {
 
@@ -32,6 +34,14 @@ std::unique_ptr<Instruction> Decoder::decode(uint32_t word) {
             funct3 == 0b101 || funct3 == 0b110 || funct3 == 0b111) {
             return std::make_unique<CsrInstruction>(word);
         }
+    }
+
+    if (word == 0x00100073) {
+        return std::make_unique<EbreakInstruction>(word);
+    }
+
+    if (word == 0x30200073) {
+        return std::make_unique<MretInstruction>(word);
     }
 
     // 其他指令暂未实现，返回 nullptr 触发旧路径
