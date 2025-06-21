@@ -2,7 +2,25 @@ CXX ?= g++
 AR  ?= ar
 CXXFLAGS ?= -std=c++17 -O2 -fPIC -I.. -I../include
 
-SRC = core_bridge.cpp ../src/RISCV.cpp ../src/venus_ext.cpp ../src/decoder/Decoder.cpp ../src/decoder/AddInstruction.cpp ../src/decoder/ArithmeticRInstruction.cpp ../src/decoder/MulDivInstruction.cpp ../src/decoder/ITypeImmInstruction.cpp ../src/decoder/CsrInstruction.cpp ../src/csr/CsrFile.cpp ../src/decoder/EbreakInstruction.cpp ../src/decoder/MretInstruction.cpp ../src/decoder/LoadInstruction.cpp ../src/decoder/StoreInstruction.cpp ../src/mem/MMU.cpp
+SRC = core_bridge.cpp \
+      ../src/RISCV.cpp \
+      ../src/venus_ext.cpp \
+      ../src/venus_mem_access.cpp \
+      ../src/decoder/Decoder.cpp \
+      ../src/decoder/AddInstruction.cpp \
+      ../src/decoder/ArithmeticRInstruction.cpp \
+      ../src/decoder/MulDivInstruction.cpp \
+      ../src/decoder/ITypeImmInstruction.cpp \
+      ../src/decoder/CsrInstruction.cpp \
+      ../src/decoder/LoadInstruction.cpp \
+      ../src/decoder/StoreInstruction.cpp \
+      ../src/decoder/JalInstruction.cpp \
+      ../src/decoder/JalrInstruction.cpp \
+      ../src/decoder/BranchInstruction.cpp \
+      ../src/decoder/EbreakInstruction.cpp \
+      ../src/decoder/MretInstruction.cpp \
+      ../src/csr/CsrFile.cpp \
+      ../src/mem/MMU.cpp
 OBJ = $(SRC:.cpp=.o)
 
 libvemu.a: $(OBJ)
@@ -55,3 +73,24 @@ TEST_MEM_SRC = ../tests/memory_access_test.cpp
 
 test_mem: libvemu.a $(TEST_MEM_SRC)
 	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_MEM_SRC) libvemu.a -o test_mem 
+
+TEST_JAL_SRC = ../tests/compare_decoder_jal.cpp
+
+.PHONY: test_decoder_jal
+
+test_decoder_jal: libvemu.a $(TEST_JAL_SRC)
+	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_JAL_SRC) libvemu.a -o test_decoder_jal 
+
+TEST_JALR_SRC = ../tests/compare_decoder_jalr.cpp
+
+.PHONY: test_decoder_jalr
+
+test_decoder_jalr: libvemu.a $(TEST_JALR_SRC)
+	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_JALR_SRC) libvemu.a -o test_decoder_jalr 
+
+TEST_BRANCH_SRC = ../tests/compare_decoder_branch.cpp
+
+.PHONY: test_decoder_branch
+
+test_decoder_branch: libvemu.a $(TEST_BRANCH_SRC)
+	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_BRANCH_SRC) libvemu.a -o test_decoder_branch 

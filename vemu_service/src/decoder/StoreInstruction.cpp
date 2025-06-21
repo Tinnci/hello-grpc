@@ -25,7 +25,7 @@ void StoreInstruction::execute(Emulator* cpu) {
         cpu->instr_name = (char*)"sh";
         break;
     case 0b010: // SW
-        cpu->mmu.write_word(addr & ~0x3u, cpu->cpuregs[rs2]);
+        cpu->mmu.write_word(addr, cpu->cpuregs[rs2]);
         cpu->instr_name = (char*)"sw";
         break;
     default:

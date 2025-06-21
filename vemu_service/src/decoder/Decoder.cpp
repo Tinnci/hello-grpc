@@ -8,6 +8,9 @@
 #include "decoder/MretInstruction.h"
 #include "decoder/LoadInstruction.h"
 #include "decoder/StoreInstruction.h"
+#include "decoder/JalInstruction.h"
+#include "decoder/JalrInstruction.h"
+#include "decoder/BranchInstruction.h"
 
 namespace Decoder {
 
@@ -35,6 +38,18 @@ std::unique_ptr<Instruction> Decoder::decode(uint32_t word) {
     }
     if (opcode == 0b0100011) { // STORE
         return std::make_unique<StoreInstruction>(word);
+    }
+
+    if (opcode == 0b1101111) { // JAL
+        return std::make_unique<JalInstruction>(word);
+    }
+
+    if (opcode == 0b1100111) { // JALR
+        return std::make_unique<JalrInstruction>(word);
+    }
+
+    if (opcode == 0b1100011) { // BRANCH instructions
+        return std::make_unique<BranchInstruction>(word);
     }
 
     if (opcode == 0b1110011) {

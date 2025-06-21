@@ -94,6 +94,13 @@
    * 合并 `memory_access_test`，随机验证 SRAM/MMIO 与 VSPM 均 1000 轮通过。
    * 编译警告清零，代码量精简 >2 K 行，仓库更加整洁。
 
+4. **Task 8 － JAL / JALR / BRANCH 指令迁移 & 回归测试**
+   * 新建 `JalInstruction`、`JalrInstruction`、`BranchInstruction`，由统一 `Decoder` 解析并执行。
+   * 删除主循环中的旧分支判定，改为调用新解码器。
+   * 新增三份对照测试 `compare_decoder_jal.cpp / _jalr.cpp / _branch.cpp`，各随机 1000 轮验证 `next_pc/rd/instr_name` 一致。
+   * Makefile 添加 `test_decoder_jal/jalr/branch` 目标，`make test_decoder_*` 一键通过。
+   * 旧 `decode_jal/jalr/branch` 保留但已标记弃用，待后续 milestone 移除。
+
 > 以上改动均已合并到 `refactor/instruction-dispatch` 分支并通过全部 Go/C++ 回归测试。
 
 ---

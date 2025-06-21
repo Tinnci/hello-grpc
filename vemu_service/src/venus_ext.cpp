@@ -3556,19 +3556,34 @@ emulate_start:
     }
     case 0b1101111: {
       instruction_valid = true;
-      this->decode_jal();
+      {
+        Decoder::Decoder decoder;
+        auto inst = decoder.decode(this->instr);
+        if (inst) inst->execute(this);
+        else instruction_valid = false;
+      }
       break;
     }
     case 0b1100111: {
       instruction_valid = true;
-      this->decode_jalr();
+      {
+        Decoder::Decoder decoder;
+        auto inst = decoder.decode(this->instr);
+        if (inst) inst->execute(this);
+        else instruction_valid = false;
+      }
       break;
     }
     case 0b1100011: {
       instruction_valid = true;
-      this->decode_branch();
+      {
+        Decoder::Decoder decoder;
+        auto inst = decoder.decode(this->instr);
+        if (inst) inst->execute(this);
+        else instruction_valid = false;
+      }
       break;
-    } // 0x1100111
+    } // BRANCH
     case 0b0000011: {
       instruction_valid = true;
       {

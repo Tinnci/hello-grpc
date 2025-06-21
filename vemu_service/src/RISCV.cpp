@@ -190,19 +190,34 @@ void Emulator::emulate() {
     }
     case 0b1101111: {
       instruction_valid = true;
-      this->decode_jal();
+      {
+        Decoder::Decoder decoder;
+        auto inst = decoder.decode(this->instr);
+        if (inst) inst->execute(this);
+        else instruction_valid = false;
+      }
       break;
     }
     case 0b1100111: {
       instruction_valid = true;
-      this->decode_jalr();
+      {
+        Decoder::Decoder decoder;
+        auto inst = decoder.decode(this->instr);
+        if (inst) inst->execute(this);
+        else instruction_valid = false;
+      }
       break;
     }
     case 0b1100011: {
       instruction_valid = true;
-      this->decode_branch();
+      {
+        Decoder::Decoder decoder;
+        auto inst = decoder.decode(this->instr);
+        if (inst) inst->execute(this);
+        else instruction_valid = false;
+      }
       break;
-    } // 0x1100111
+    } // BRANCH
     case 0b0000011: {
       instruction_valid = true;
       {
@@ -404,7 +419,7 @@ void Emulator::decode_auipc() {
   this->next_pc = this->pc + 4;
   this->instr_name = (char *)"auipc";
 }
-
+#if 1 // legacy path retained for regression tests
 void Emulator::decode_jal() {
   // this->jump_offset = (((this->instr >> 12) & 0xFF) << 12) | (((this->instr
   // >> 20) & 0b1) << 11) | (((this->instr >> 21) & 0x3FF) << 1) |
@@ -490,7 +505,7 @@ void Emulator::decode_branch() {
   }
   }
 }
-
+#endif // legacy path
 // ---- LEGACY decode_load/decode_store removed in Task 7 cleanup ----
 #if 0
 void Emulator::decode_load() {

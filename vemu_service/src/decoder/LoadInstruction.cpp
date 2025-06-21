@@ -10,8 +10,6 @@ void LoadInstruction::execute(Emulator* cpu) {
     uint32_t addr = cpu->cpuregs[rs1] + imm;
     uint8_t funct3 = (word_ >> 12) & 0x7;
 
-    uint32_t val = cpu->mmu.read_word(addr & ~0x3u);
-
     switch (funct3) {
     case 0b000: // LB
         cpu->cpuregs[rd] = cpu->mmu.read_byte(addr);
@@ -22,7 +20,7 @@ void LoadInstruction::execute(Emulator* cpu) {
         cpu->instr_name = (char*)"lh";
         break;
     case 0b010: // LW
-        cpu->cpuregs[rd] = val;
+        cpu->cpuregs[rd] = cpu->mmu.read_word(addr);
         cpu->instr_name = (char*)"lw";
         break;
     case 0b100: // LBU
