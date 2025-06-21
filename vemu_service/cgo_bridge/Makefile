@@ -34,3 +34,10 @@ TEST_I_SRC = ../tests/compare_decoder_i.cpp
 
 test_decoder_i: libvemu.a $(TEST_I_SRC)
 	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_I_SRC) libvemu.a -o test_decoder_i 
+
+TEST_CSR_SRC = ../tests/compare_decoder_csr.cpp
+
+.PHONY: test_decoder_csr
+
+test_decoder_csr: libvemu.a $(TEST_CSR_SRC)
+	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_CSR_SRC) libvemu.a -o test_decoder_csr 
