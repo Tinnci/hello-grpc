@@ -2,7 +2,7 @@ CXX ?= g++
 AR  ?= ar
 CXXFLAGS ?= -std=c++17 -O2 -fPIC -I.. -I../include
 
-SRC = core_bridge.cpp ../src/RISCV.cpp ../src/venus_ext.cpp ../src/decoder/Decoder.cpp ../src/decoder/AddInstruction.cpp ../src/decoder/ArithmeticRInstruction.cpp ../src/decoder/MulDivInstruction.cpp ../src/decoder/ITypeImmInstruction.cpp ../src/decoder/CsrInstruction.cpp ../src/csr/CsrFile.cpp ../src/decoder/EbreakInstruction.cpp ../src/decoder/MretInstruction.cpp
+SRC = core_bridge.cpp ../src/RISCV.cpp ../src/venus_ext.cpp ../src/decoder/Decoder.cpp ../src/decoder/AddInstruction.cpp ../src/decoder/ArithmeticRInstruction.cpp ../src/decoder/MulDivInstruction.cpp ../src/decoder/ITypeImmInstruction.cpp ../src/decoder/CsrInstruction.cpp ../src/csr/CsrFile.cpp ../src/decoder/EbreakInstruction.cpp ../src/decoder/MretInstruction.cpp ../src/decoder/LoadInstruction.cpp ../src/decoder/StoreInstruction.cpp ../src/mem/MMU.cpp
 OBJ = $(SRC:.cpp=.o)
 
 libvemu.a: $(OBJ)
@@ -48,3 +48,10 @@ TEST_TRAP_SRC = ../tests/trap_flow_test.cpp
 
 test_trap: libvemu.a $(TEST_TRAP_SRC)
 	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_TRAP_SRC) libvemu.a -o test_trap 
+
+TEST_MEM_SRC = ../tests/memory_access_test.cpp
+
+.PHONY: test_mem
+
+test_mem: libvemu.a $(TEST_MEM_SRC)
+	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_MEM_SRC) libvemu.a -o test_mem 

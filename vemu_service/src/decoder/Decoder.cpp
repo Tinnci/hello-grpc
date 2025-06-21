@@ -6,6 +6,8 @@
 #include "decoder/CsrInstruction.h"
 #include "decoder/EbreakInstruction.h"
 #include "decoder/MretInstruction.h"
+#include "decoder/LoadInstruction.h"
+#include "decoder/StoreInstruction.h"
 
 namespace Decoder {
 
@@ -26,6 +28,13 @@ std::unique_ptr<Instruction> Decoder::decode(uint32_t word) {
     // I-Type immediate arithmetic
     if (opcode == 0b0010011) {
         return std::make_unique<ITypeImmInstruction>(word);
+    }
+
+    if (opcode == 0b0000011) { // LOAD
+        return std::make_unique<LoadInstruction>(word);
+    }
+    if (opcode == 0b0100011) { // STORE
+        return std::make_unique<StoreInstruction>(word);
     }
 
     if (opcode == 0b1110011) {

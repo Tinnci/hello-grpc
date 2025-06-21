@@ -10,6 +10,7 @@
 #include <iostream>
 #include <bitset>
 #include "csr/CsrFile.h"
+#include "mem/MMU.h"
 
 namespace RISCV
 {
@@ -93,6 +94,7 @@ public:
     } taskinfo;
 
     CsrFile csr;  // 新增 CSR 文件
+    Mem::MMU mmu{this};
 
     char regname[32][6] = {"zero", "ra", "sp", "gp", "tp",
                            "t0", "t1", "t2", "s0", "s1",
