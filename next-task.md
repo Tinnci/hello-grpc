@@ -88,8 +88,13 @@
    * 引入 `Mem::MMU`（支持字节/半字/字访问，含 `PRINTF_ADDR` MMIO）。
    * 迁移全部 `LB/LH/LW/LBU/LHU/SB/SH/SW` 指令到新解码器。
    * `memory_access_test` 1000 轮随机验证通过。
+3. **Task 7 － Venus 地址空间整合与旧代码清理**
+   * 通过在 `Emulator` 增加虚函数读写接口 + `MMU` 委托，实现统一的多态内存访问模型。
+   * `Venus_Emulator` 覆写内存接口，透明支持 VSPM / SPM 地址；`decode_load/store` 旧实现全部下线。
+   * 合并 `memory_access_test`，随机验证 SRAM/MMIO 与 VSPM 均 1000 轮通过。
+   * 编译警告清零，代码量精简 >2 K 行，仓库更加整洁。
 
-> 以上改动均已合并到 `refactor/instruction-dispatch` 分支并通过所有 Go/C++ 回归测试。
+> 以上改动均已合并到 `refactor/instruction-dispatch` 分支并通过全部 Go/C++ 回归测试。
 
 ---
 
