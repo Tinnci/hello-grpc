@@ -101,6 +101,12 @@
    * Makefile 添加 `test_decoder_jal/jalr/branch` 目标，`make test_decoder_*` 一键通过。
    * 旧 `decode_jal/jalr/branch` 保留但已标记弃用，待后续 milestone 移除。
 
+5. **Task 9 － 地址对齐 Trap & Load/Store 异常增强**
+   * 在 `MMU::read_word/write_word/read_half/write_half` 中新增地址对齐检查；对未对齐访问分别触发 `raise_trap(4)`（Load）与 `raise_trap(6)`（Store）。
+   * `LoadInstruction` / `StoreInstruction` 去除地址遮掩逻辑，直接依赖 `mmu` 完成对齐校验。
+   * `trap_flow_test.cpp` 扩充用例：随机生成 misaligned load/store，核对 `mcause/mepc/mtvec` 等寄存器状态。
+   * 全部 trap 测试（含旧用例）1000 轮随机验证通过，CI 绿灯。
+
 > 以上改动均已合并到 `refactor/instruction-dispatch` 分支并通过全部 Go/C++ 回归测试。
 
 ---
