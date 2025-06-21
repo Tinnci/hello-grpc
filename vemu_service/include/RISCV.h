@@ -115,12 +115,10 @@ public:
     void decode_jal();
     void decode_jalr();
     void decode_branch();
-    void decode_load();
-    void decode_store();
     void decode_arthimetic_imm();
     void decode_arthimetic_reg();
     void decode_RV32M();
-    void [[deprecated("legacy IRQ shim; will be removed once trap() is implemented")]] decode_IRQ();
+    [[deprecated("legacy IRQ shim; will be removed once trap() is implemented")]] void decode_IRQ();
     void raise_trap(uint32_t cause_code);
 
     void panic(const char *format, ...);
@@ -130,6 +128,19 @@ public:
     int signed_sim(uint32_t reg_range);
 
     char *getRISCVRegABI(int id);
+
+    // ===== Memory access virtuals (Task 7.1) =====
+    // 默认实现回退到 SRAM/MMIO；子类如 Venus_Emulator 可以覆写以处理专有地址空间。
+    virtual uint32_t read_word(uint32_t addr);
+    virtual void     write_word(uint32_t addr, uint32_t data);
+
+    virtual int8_t   read_byte(int32_t addr);
+    virtual uint8_t  read_byte_u(uint32_t addr);
+    virtual int16_t  read_half(int32_t addr);
+    virtual uint16_t read_half_u(uint32_t addr);
+
+    virtual void write_byte(uint32_t addr, uint8_t data);
+    virtual void write_half(uint32_t addr, uint16_t data);
 };
 
 #endif

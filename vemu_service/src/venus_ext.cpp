@@ -1,4 +1,5 @@
 #include "venus_ext.h"
+#include "decoder/Decoder.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdlib>
@@ -3570,12 +3571,28 @@ emulate_start:
     } // 0x1100111
     case 0b0000011: {
       instruction_valid = true;
-      this->decode_load();
+      {
+        Decoder::Decoder decoder;
+        auto inst = decoder.decode(this->instr);
+        if (inst) {
+          inst->execute(this);
+        } else {
+          instruction_valid = false;
+        }
+      }
       break;
     }
     case 0b0100011: {
       instruction_valid = true;
-      this->decode_store();
+      {
+        Decoder::Decoder decoder;
+        auto inst = decoder.decode(this->instr);
+        if (inst) {
+          inst->execute(this);
+        } else {
+          instruction_valid = false;
+        }
+      }
       break;
     } // store
     case 0b0010011: {
@@ -4203,7 +4220,8 @@ int32_t Venus_Emulator::st_to_scalar_spm(int store_addr, int store_value) {
   this->sram[store_addr] = store_value;
   return 0;
 }
-
+// legacy Venus decode_load/store kept for reference but disabled
+#if 0
 inline void Venus_Emulator::decode_store() {
   int temp;
   this->load_store_addr =
@@ -4414,7 +4432,6 @@ inline void Venus_Emulator::decode_store() {
 out:
   this->next_pc = this->pc + 4;
 }
-
 inline void Venus_Emulator::decode_load() {
   this->load_store_addr =
       this->cpuregs[this->rs1] +
@@ -4738,7 +4755,7 @@ inline void Venus_Emulator::decode_load() {
 out:
   this->next_pc = this->pc + 4;
 }
-
+#endif
 char *Venus_Emulator::venus_funct3_str(FUNC3 funct3) {
   switch (funct3) {
   case IVV:

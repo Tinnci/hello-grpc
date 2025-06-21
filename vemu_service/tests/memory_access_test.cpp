@@ -1,4 +1,5 @@
 #include "RISCV.h"
+#include "venus_ext.h"
 #include <cassert>
 #include <cstdlib>
 #include <ctime>
@@ -53,8 +54,29 @@ int main() {
         // Verify SRAM content reflects expected composites
         uint32_t check_word = emu->sram[word_addr >> 2];
         assert(check_word == emu->mmu.read_word(word_addr));
+
+        /* -------- VSPM 测试 -------- */
+        {
+            auto vemu = std::make_unique<Venus_Emulator>();
+            vemu->verbose = false;
+            uint32_t word_index = rand32() % 1024; // 随机选取 4KB 以内 word
+            uint32_t base_addr = vemu->BLOCK_PERSPECTIVE_BASEADDR + vemu->BLOCK_VRF_OFFSET + word_index * 4;
+
+            uint32_t vw_val = rand32();
+            uint16_t vh_val = static_cast<uint16_t>(rand32() & 0xFFFFu);
+            uint8_t  vb_val = static_cast<uint8_t>(rand32() & 0xFFu);
+
+            vemu->mmu.write_word(base_addr, vw_val);
+            assert(vemu->mmu.read_word(base_addr) == vw_val);
+
+            vemu->mmu.write_half(base_addr, vh_val);
+            assert(vemu->mmu.read_half_u(base_addr) == vh_val);
+
+            vemu->mmu.write_byte(base_addr, vb_val);
+            assert(vemu->mmu.read_byte_u(base_addr) == vb_val);
+        }
     }
 
-    std::cout << "Memory access test passed (" << iterations << " iterations)." << std::endl;
+    std::cout << "Memory + VSPM access test passed (" << iterations << " iterations)." << std::endl;
     return 0;
 } 

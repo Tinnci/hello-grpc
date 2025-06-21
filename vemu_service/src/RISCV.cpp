@@ -205,23 +205,39 @@ void Emulator::emulate() {
     } // 0x1100111
     case 0b0000011: {
       instruction_valid = true;
-      this->decode_load();
+      {
+        Decoder::Decoder decoder;
+        auto inst = decoder.decode(this->instr);
+        if (inst) {
+          inst->execute(this);
+        } else {
+          instruction_valid = false; // 未知 LOAD 指令
+        }
+      }
       break;
     }
     case 0b0100011: {
       instruction_valid = true;
-      this->decode_store();
+      {
+        Decoder::Decoder decoder;
+        auto inst = decoder.decode(this->instr);
+        if (inst) {
+          inst->execute(this);
+        } else {
+          instruction_valid = false; // 未知 STORE 指令
+        }
+      }
       break;
     }
     case 0b0010011: {
       instruction_valid = true;
       {
         Decoder::Decoder decoder;
-        auto decodedInst = decoder.decode(this->instr);
-        if (decodedInst) {
-          decodedInst->execute(this);
+        auto inst = decoder.decode(this->instr);
+        if (inst) {
+          inst->execute(this);
         } else {
-          this->decode_arthimetic_imm(); // fallback
+          this->decode_arthimetic_imm(); // Fallback 兼容
         }
       }
       break;
@@ -475,6 +491,8 @@ void Emulator::decode_branch() {
   }
 }
 
+// ---- LEGACY decode_load/decode_store removed in Task 7 cleanup ----
+#if 0
 void Emulator::decode_load() {
   this->load_store_addr =
       this->cpuregs[this->rs1] +
@@ -596,108 +614,13 @@ void Emulator::decode_load() {
   }
   this->next_pc = this->pc + 4;
 }
+#endif
 
+#if 0
 void Emulator::decode_store() {
-  this->load_store_addr =
-      this->cpuregs[this->rs1] +
-      ((((this->instr >> 31) == 0) ? 0 : 0xFFFFF000) |
-       (((this->instr >> 7) & 0x1F) + (((this->instr >> 25) & 0x7F) << 5)));
-  if (this->load_store_addr > 0x80000000)
-    this->load_store_addr = this->load_store_addr - 0x80000000;
-  if ((this->load_store_addr >> 2) < CPU::SRAMSIZE &&
-      (this->load_store_addr) != PRINTF_ADDR) {
-    switch ((this->instr >> 12) & 0b111) {
-    case 0b0: {
-      switch (this->load_store_addr & 0b11) {
-      case 0b0: {
-        (this->sram[this->load_store_addr >> 2]) =
-            ((this->sram[this->load_store_addr >> 2]) & 0xFFFFFF00) |
-            (this->cpuregs[this->rs2] & 0xFF);
-        break;
-      }
-      case 0b1: {
-        (this->sram[this->load_store_addr >> 2]) =
-            ((this->sram[this->load_store_addr >> 2]) & 0xFFFF00FF) |
-            ((this->cpuregs[this->rs2] & 0xFF) << 8);
-        break;
-      }
-      case 0b10: {
-        (this->sram[this->load_store_addr >> 2]) =
-            ((this->sram[this->load_store_addr >> 2]) & 0xFF00FFFF) |
-            ((this->cpuregs[this->rs2] & 0xFF) << 16);
-        break;
-      }
-      case 0b11: {
-        (this->sram[this->load_store_addr >> 2]) =
-            ((this->sram[this->load_store_addr >> 2]) & 0x00FFFFFF) |
-            ((this->cpuregs[this->rs2] & 0xFF) << 24);
-        break;
-      }
-      }
-      this->instr_name = (char *)"sb";
-      break;
-    }
-    case 0b1: {
-      switch (this->load_store_addr & 0b11) {
-      case 0b0: {
-        (this->sram[this->load_store_addr >> 2]) =
-            ((this->sram[this->load_store_addr >> 2]) & 0xFFFF0000) |
-            (this->cpuregs[this->rs2] & 0xFFFF);
-        break;
-      }
-      case 0b10: {
-        (this->sram[this->load_store_addr >> 2]) =
-            ((this->sram[this->load_store_addr >> 2]) & 0x0000FFFF) |
-            ((this->cpuregs[this->rs2] & 0xFFFF) << 16);
-        break;
-      }
-      }
-      this->instr_name = (char *)"sh";
-      break;
-    }
-    case 0b10: {
-      (this->sram[this->load_store_addr >> 2]) = (this->cpuregs[this->rs2]);
-      this->instr_name = (char *)"sw";
-      break;
-    }
-    }
-  } else if (this->load_store_addr == this->PRINTF_ADDR) {
-    uint32_t store_data;
-    switch ((this->instr >> 12) & 0b111) {
-    case 0b0:
-      store_data = this->cpuregs[this->rs2] & 0xFF;
-      break;
-    case 0b1:
-      store_data = this->cpuregs[this->rs2] & 0xFFFF;
-      break;
-    case 0b10:
-      store_data = (this->cpuregs[this->rs2]);
-      break;
-    }
-    // printf("scalar printf: %c", store_data);
-    fprintf(stderr, "%c", store_data);
-    this->instr_name = (char *)"sw";
-  } else if (this->load_store_addr == this->TEST_PRINTF_ADDR) {
-    uint32_t store_data;
-    switch ((this->instr >> 12) & 0b111) {
-    case 0b0:
-      store_data = this->cpuregs[this->rs2] & 0xFF;
-      break;
-    case 0b1:
-      store_data = this->cpuregs[this->rs2] & 0xFFFF;
-      break;
-    case 0b10:
-      store_data = (this->cpuregs[this->rs2]);
-      break;
-    }
-    if (store_data == 123456789)
-      printf("ALL TESTS PASSED.\n");
-    else
-      printf("ERROR!\n");
-    this->instr_name = (char *)"sw";
-  }
-  this->next_pc = this->pc + 4;
+    // legacy code
 }
+#endif
 
 void Emulator::decode_arthimetic_imm() {
     // legacy shim: forward to new generic Decoder
@@ -735,7 +658,7 @@ void Emulator::decode_IRQ() {
     this->next_pc = this->pc + 4;
 }
 
-char* cause_names[] = {"misaligned_fetch","fault_fetch","illegal","breakpoint","load_misaligned","load_fault","store_misaligned","store_fault"}; // minimal list
+const char* cause_names[] = {"misaligned_fetch","fault_fetch","illegal","breakpoint","load_misaligned","load_fault","store_misaligned","store_fault"}; // minimal list
 
 void Emulator::raise_trap(uint32_t cause_code) {
   // Save faulting PC
@@ -816,3 +739,65 @@ int Emulator::remainderDivision(int dividend, int divisor) {
 }
 
 char *Emulator::getRISCVRegABI(int id) { return regname[id]; }
+
+uint32_t Emulator::read_word(uint32_t addr) {
+    // 默认实现：SRAM + MMIO
+    if (addr == this->PRINTF_ADDR || addr == this->TEST_PRINTF_ADDR) {
+        return 0; // 写专用 MMIO 地址，读恒 0
+    }
+    uint32_t norm = (addr >= 0x80000000u) ? addr - 0x80000000u : addr;
+    return this->sram[norm >> 2];
+}
+
+void Emulator::write_word(uint32_t addr, uint32_t data) {
+    if (addr == this->PRINTF_ADDR) {
+        fputc(static_cast<char>(data & 0xFF), stderr);
+        return;
+    }
+    if (addr == this->TEST_PRINTF_ADDR) {
+        if (data == 123456789)
+            fprintf(stderr, "ALL TESTS PASSED.\n");
+        else
+            fprintf(stderr, "ERROR!\n");
+        return;
+    }
+    uint32_t norm = (addr >= 0x80000000u) ? addr - 0x80000000u : addr;
+    this->sram[norm >> 2] = data;
+}
+
+int8_t Emulator::read_byte(int32_t addr) {
+    uint32_t norm = (addr >= 0x80000000u) ? addr - 0x80000000u : static_cast<uint32_t>(addr);
+    uint32_t word = this->sram[norm >> 2];
+    uint8_t shift = (norm & 0x3) * 8;
+    return static_cast<int8_t>((word >> shift) & 0xFF);
+}
+
+uint8_t Emulator::read_byte_u(uint32_t addr) {
+    return static_cast<uint8_t>(read_byte(static_cast<int32_t>(addr)));
+}
+
+int16_t Emulator::read_half(int32_t addr) {
+    uint32_t norm = (addr >= 0x80000000u) ? addr - 0x80000000u : static_cast<uint32_t>(addr);
+    uint32_t word = this->sram[norm >> 2];
+    uint8_t shift = (norm & 0x2) * 8;
+    return static_cast<int16_t>((word >> shift) & 0xFFFF);
+}
+
+uint16_t Emulator::read_half_u(uint32_t addr) {
+    return static_cast<uint16_t>(read_half(static_cast<int32_t>(addr)));
+}
+
+void Emulator::write_byte(uint32_t addr, uint8_t data) {
+    if (addr == this->PRINTF_ADDR) { fputc(static_cast<char>(data), stderr); return; }
+    uint32_t norm = (addr >= 0x80000000u) ? addr - 0x80000000u : addr;
+    uint32_t &word = this->sram[norm >> 2];
+    uint8_t shift = (norm & 0x3) * 8;
+    word = (word & ~(0xFFu << shift)) | (static_cast<uint32_t>(data) << shift);
+}
+
+void Emulator::write_half(uint32_t addr, uint16_t data) {
+    uint32_t norm = (addr >= 0x80000000u) ? addr - 0x80000000u : addr;
+    uint32_t &word = this->sram[norm >> 2];
+    uint8_t shift = (norm & 0x2) * 8;
+    word = (word & ~(0xFFFFu << shift)) | (static_cast<uint32_t>(data) << shift);
+}

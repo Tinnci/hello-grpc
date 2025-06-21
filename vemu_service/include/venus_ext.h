@@ -142,4 +142,13 @@ public:
     paused_ = false;
     memset(&MY_VENUS_INS_PARAM, 0, sizeof(MY_VENUS_INS_PARAM));
   };
+  // ===== Memory access overrides (Task 7.2) =====
+  uint32_t read_word(uint32_t addr) override;
+  void     write_word(uint32_t addr, uint32_t data) override;
+  int8_t   read_byte(int32_t addr) override;
+  uint8_t  read_byte_u(uint32_t addr) override;
+  int16_t  read_half(int32_t addr) override;
+  uint16_t read_half_u(uint32_t addr) override;
+  void     write_byte(uint32_t addr, uint8_t data) override;
+  void     write_half(uint32_t addr, uint16_t data) override;
 };
