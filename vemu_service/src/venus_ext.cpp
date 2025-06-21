@@ -3610,18 +3610,30 @@ emulate_start:
       }
       break;
     } // store
-    case 0b0010011: {
+    case 0b0010011: { // I-Type 立即数运算
       instruction_valid = true;
-      this->decode_arthimetic_imm();
+      {
+        Decoder::Decoder decoder;
+        auto inst = decoder.decode(this->instr);
+        if (inst) {
+          inst->execute(this);
+        } else {
+          instruction_valid = false;
+        }
+      }
       break;
     }
-    case 0b0110011: {
+    case 0b0110011: { // R-Type / M-Ext 运算
       instruction_valid = true;
-      if ((((this->instr >> 25) & 0x7F) == 0b0) ||
-          (((this->instr >> 25) & 0x7F) == 0b0100000))
-        this->decode_arthimetic_reg();
-      else if ((((this->instr >> 25) & 0x7F) == 0b0000001))
-        this->decode_RV32M();
+      {
+        Decoder::Decoder decoder;
+        auto inst = decoder.decode(this->instr);
+        if (inst) {
+          inst->execute(this);
+        } else {
+          instruction_valid = false;
+        }
+      }
       break;
     }
    #if 0 // legacy IRQ removed

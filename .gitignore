@@ -34,6 +34,7 @@ vemu_service/src/**/*.o
 
 # vemu_service test executables
 vemu_service/cgo_bridge/test_decoder*
+vemu_service/cgo_bridge/test_isa*
 
 # trap 测试可执行
 vemu_service/cgo_bridge/test_trap

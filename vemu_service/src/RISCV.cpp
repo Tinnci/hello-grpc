@@ -252,7 +252,7 @@ void Emulator::emulate() {
         if (inst) {
           inst->execute(this);
         } else {
-          this->decode_arthimetic_imm(); // Fallback 兼容
+          instruction_valid = false; // 解码失败，标记非法
         }
       }
       break;
@@ -265,12 +265,7 @@ void Emulator::emulate() {
         if (decodedInst) {
           decodedInst->execute(this);
         } else {
-          // fallback 仅处理 M 扩展 (MUL/DIV 等)，其余 R-Type 均应由新解码器覆盖
-          if (((this->instr >> 25) & 0x7F) == 0b0000001) {
-            this->decode_RV32M();
-          } else {
-            instruction_valid = false; // 不应发生，留作安全网
-          }
+          instruction_valid = false; // 解码失败，标记非法
         }
       }
       break;
@@ -420,7 +415,7 @@ void Emulator::decode_auipc() {
   this->next_pc = this->pc + 4;
   this->instr_name = (char *)"auipc";
 }
-#if 1 // legacy path retained for regression tests
+#if 0 // legacy decode functions removed
 void Emulator::decode_jal() {
   // this->jump_offset = (((this->instr >> 12) & 0xFF) << 12) | (((this->instr
   // >> 20) & 0b1) << 11) | (((this->instr >> 21) & 0x3FF) << 1) |
@@ -506,167 +501,13 @@ void Emulator::decode_branch() {
   }
   }
 }
-#endif // legacy path
+#endif // legacy decode functions
 // ---- LEGACY decode_load/decode_store removed in Task 7 cleanup ----
-#if 0
-void Emulator::decode_load() {
-  this->load_store_addr =
-      this->cpuregs[this->rs1] +
-      this->signed_sim((this->instr >> 31) == 0
-                           ? (this->instr >> 20)
-                           : ((this->instr >> 20) | 0xFFFFF000));
-  if (this->load_store_addr > 0x80000000)
-    this->load_store_addr = this->load_store_addr - 0x80000000;
-  if (this->rd != 0) {
-    switch ((this->instr >> 12) & 0b111) {
-    case 0b0: {
-      switch (this->load_store_addr & 0b11) {
-      case 0b0: {
-        this->cpuregs[this->rd] =
-            (((this->sram[this->load_store_addr >> 2]) >> 7) & 0b1)
-                ? (0xFFFFFF00 |
-                   ((this->sram[this->load_store_addr >> 2]) & 0xFF))
-                : ((this->sram[this->load_store_addr >> 2]) & 0xFF);
-        break;
-      }
-      case 0b1: {
-        this->cpuregs[this->rd] =
-            (((this->sram[this->load_store_addr >> 2]) >> 15) & 0b1)
-                ? (0xFFFFFF00 |
-                   (((this->sram[this->load_store_addr >> 2]) >> 8) & 0xFF))
-                : (((this->sram[this->load_store_addr >> 2]) >> 8) & 0xFF);
-        break;
-      }
-      case 0b10: {
-        this->cpuregs[this->rd] =
-            (((this->sram[this->load_store_addr >> 2]) >> 23) & 0b1)
-                ? (0xFFFFFF00 |
-                   (((this->sram[this->load_store_addr >> 2]) >> 16) & 0xFF))
-                : (((this->sram[this->load_store_addr >> 2]) >> 16) & 0xFF);
-        break;
-      }
-      case 0b11: {
-        this->cpuregs[this->rd] =
-            (((this->sram[this->load_store_addr >> 2]) >> 31) & 0b1)
-                ? (0xFFFFFF00 |
-                   (((this->sram[this->load_store_addr >> 2]) >> 24) & 0xFF))
-                : (((this->sram[this->load_store_addr >> 2]) >> 24) & 0xFF);
-        break;
-      }
-      }
-      this->instr_name = (char *)"lb";
-      break;
-    }
-    case 0b1: {
-      switch (this->load_store_addr & 0b11) {
-      case 0b0: {
-        this->cpuregs[this->rd] =
-            (((this->sram[this->load_store_addr >> 2]) >> 15) & 0b1)
-                ? (0xFFFF0000 |
-                   ((this->sram[this->load_store_addr >> 2]) & 0xFFFF))
-                : ((this->sram[this->load_store_addr >> 2]) & 0xFFFF);
-        break;
-      }
-      case 0b10: {
-        this->cpuregs[this->rd] =
-            (((this->sram[this->load_store_addr >> 2]) >> 31) & 0b1)
-                ? (0xFFFF0000 |
-                   (((this->sram[this->load_store_addr >> 2]) >> 16) & 0xFFFF))
-                : (((this->sram[this->load_store_addr >> 2]) >> 16) & 0xFFFF);
-        break;
-      }
-      }
-      this->instr_name = (char *)"lh";
-      break;
-    }
-    case 0b10: {
-      this->cpuregs[this->rd] = ((this->sram[this->load_store_addr >> 2]));
-      this->instr_name = (char *)"lw";
-      break;
-    }
-    case 0b100: {
-      switch (this->load_store_addr & 0b11) {
-      case 0b0: {
-        this->cpuregs[this->rd] =
-            ((this->sram[this->load_store_addr >> 2]) & 0xFF);
-        break;
-      }
-      case 0b1: {
-        this->cpuregs[this->rd] =
-            (((this->sram[this->load_store_addr >> 2]) >> 8) & 0xFF);
-        break;
-      }
-      case 0b10: {
-        this->cpuregs[this->rd] =
-            (((this->sram[this->load_store_addr >> 2]) >> 16) & 0xFF);
-        break;
-      }
-      case 0b11: {
-        this->cpuregs[this->rd] =
-            (((this->sram[this->load_store_addr >> 2]) >> 24) & 0xFF);
-        break;
-      }
-      }
-      this->instr_name = (char *)"lbu";
-      break;
-    }
-    case 0b101: {
-      switch (this->load_store_addr & 0b11) {
-      case 0b0: {
-        this->cpuregs[this->rd] =
-            ((this->sram[this->load_store_addr >> 2]) & 0xFFFF);
-        break;
-      }
-      case 0b10: {
-        this->cpuregs[this->rd] =
-            (((this->sram[this->load_store_addr >> 2]) >> 16) & 0xFFFF);
-        break;
-      }
-      }
-      this->instr_name = (char *)"lhu";
-      break;
-    }
-    }
-  }
-  this->next_pc = this->pc + 4;
-}
+#if 0 // legacy arithmetic shim removed
+void Emulator::decode_arthimetic_imm() {}
+void Emulator::decode_arthimetic_reg() {}
+void Emulator::decode_RV32M() {}
 #endif
-
-#if 0
-void Emulator::decode_store() {
-    // legacy code
-}
-#endif
-
-void Emulator::decode_arthimetic_imm() {
-    // legacy shim: forward to new generic Decoder
-    Decoder::Decoder decoder;
-    if (auto inst = decoder.decode(this->instr)) {
-        inst->execute(this);
-    }
-    this->next_pc = this->pc + 4;
-    this->instr_name = (char *)"[legacy shim: I-Type]";
-}
-
-void Emulator::decode_arthimetic_reg() {
-    // legacy shim: forward to new generic Decoder
-    Decoder::Decoder decoder;
-    if (auto inst = decoder.decode(this->instr)) {
-        inst->execute(this);
-    }
-    this->next_pc = this->pc + 4;
-    this->instr_name = (char *)"[legacy shim: R-Type]";
-}
-
-void Emulator::decode_RV32M() {
-    // legacy shim: forward to new generic Decoder (MulDiv etc.)
-    Decoder::Decoder decoder;
-    if (auto inst = decoder.decode(this->instr)) {
-        inst->execute(this);
-    }
-    this->next_pc = this->pc + 4;
-    this->instr_name = (char *)"[legacy shim: M-Ext]";
-}
 
 void Emulator::decode_IRQ() {
     // legacy shim：保持符号可链接，但不再执行任何逻辑

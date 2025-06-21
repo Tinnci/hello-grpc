@@ -32,27 +32,6 @@ libvemu.a: $(OBJ)
 clean:
 	rm -f $(OBJ) libvemu.a 
 
-TEST_SRC = ../tests/compare_decoder.cpp
-
-.PHONY: test_decoder
-
-test_decoder: libvemu.a $(TEST_SRC)
-	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_SRC) libvemu.a -o test_decoder 
-
-TEST_M_SRC = ../tests/compare_decoder_m.cpp
-
-.PHONY: test_decoder_m
-
-test_decoder_m: libvemu.a $(TEST_M_SRC)
-	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_M_SRC) libvemu.a -o test_decoder_m 
-
-TEST_I_SRC = ../tests/compare_decoder_i.cpp
-
-.PHONY: test_decoder_i
-
-test_decoder_i: libvemu.a $(TEST_I_SRC)
-	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_I_SRC) libvemu.a -o test_decoder_i 
-
 TEST_CSR_SRC = ../tests/compare_decoder_csr.cpp
 
 .PHONY: test_decoder_csr
@@ -74,26 +53,23 @@ TEST_MEM_SRC = ../tests/memory_access_test.cpp
 test_mem: libvemu.a $(TEST_MEM_SRC)
 	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_MEM_SRC) libvemu.a -o test_mem 
 
-TEST_JAL_SRC = ../tests/compare_decoder_jal.cpp
+TEST_ISA_R_SRC = ../tests/isa_r.cpp
+TEST_ISA_I_SRC = ../tests/isa_i.cpp
+TEST_ISA_M_SRC = ../tests/isa_m.cpp
 
-.PHONY: test_decoder_jal
+.PHONY: test_isa_r test_isa_i test_isa_m test_isa
 
-test_decoder_jal: libvemu.a $(TEST_JAL_SRC)
-	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_JAL_SRC) libvemu.a -o test_decoder_jal 
+test_isa_r: libvemu.a $(TEST_ISA_R_SRC)
+	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_ISA_R_SRC) libvemu.a -o test_isa_r
 
-TEST_JALR_SRC = ../tests/compare_decoder_jalr.cpp
+test_isa_i: libvemu.a $(TEST_ISA_I_SRC)
+	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_ISA_I_SRC) libvemu.a -o test_isa_i
 
-.PHONY: test_decoder_jalr
+test_isa_m: libvemu.a $(TEST_ISA_M_SRC)
+	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_ISA_M_SRC) libvemu.a -o test_isa_m
 
-test_decoder_jalr: libvemu.a $(TEST_JALR_SRC)
-	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_JALR_SRC) libvemu.a -o test_decoder_jalr 
-
-TEST_BRANCH_SRC = ../tests/compare_decoder_branch.cpp
-
-.PHONY: test_decoder_branch
-
-test_decoder_branch: libvemu.a $(TEST_BRANCH_SRC)
-	$(CXX) $(CXXFLAGS) -I.. -I../include $(TEST_BRANCH_SRC) libvemu.a -o test_decoder_branch 
+# 聚合目标
+test_isa: test_isa_r test_isa_i test_isa_m
 
 .PHONY: all
 all: libvemu.a 

@@ -110,16 +110,13 @@ public:
 
     // private:
 
-    void decode_lui();
-    void decode_auipc();
-    void decode_jal();
-    void decode_jalr();
-    void decode_branch();
-    void decode_arthimetic_imm();
-    void decode_arthimetic_reg();
-    void decode_RV32M();
+    // 旧解码函数已彻底移除，保留声明会导致未定义引用
     void raise_trap(uint32_t cause_code);
     [[deprecated("legacy IRQ shim; will be removed once trap() is implemented")]] void decode_IRQ();
+
+    // 仍在使用的 legacy 指令辅助函数（计划后续移除）
+    void decode_lui();
+    void decode_auipc();
 
     void panic(const char *format, ...);
     int integerDivision(int dividend, int divisor);
