@@ -28,3 +28,5 @@ client_bin
 vemu_service/cgo_bridge/*.o
 vemu_service/cgo_bridge/libvemu.a
 vemu_service/src/*.o 
+
+*_run.txt

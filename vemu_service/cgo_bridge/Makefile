@@ -2,7 +2,7 @@ CXX ?= g++
 AR  ?= ar
 CXXFLAGS ?= -std=c++17 -O2 -fPIC -I.. -I../include
 
-SRC = core_bridge.cpp ../src/RISCV.cpp ../src/venus_ext.cpp
+SRC = core_bridge.cpp ../src/RISCV.cpp ../src/venus_ext.cpp ../src/decoder/Decoder.cpp ../src/decoder/AddInstruction.cpp
 OBJ = $(SRC:.cpp=.o)
 
 libvemu.a: $(OBJ)
