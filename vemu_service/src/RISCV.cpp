@@ -275,11 +275,12 @@ void Emulator::emulate() {
       }
       break;
     }
+    #if 0 // legacy IRQ case removed
     case 0b0001011: {
-      instruction_valid = true;
-      this->decode_IRQ();
+      instruction_valid = false; // unreachable
       break;
     }
+    #endif
     case 0b1110011: {
         instruction_valid = true;
         {

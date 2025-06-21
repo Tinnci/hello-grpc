@@ -3624,11 +3624,12 @@ emulate_start:
         this->decode_RV32M();
       break;
     }
-    case 0b0001011: {
-      instruction_valid = true;
-      this->decode_IRQ();
-      break;
+   #if 0 // legacy IRQ removed
+   case 0b0001011: {
+     instruction_valid = false;
+     break;
     }
+    #endif // IRQ
 
     // venus extension
     case 0b0101011:
