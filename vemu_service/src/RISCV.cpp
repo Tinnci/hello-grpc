@@ -1,4 +1,5 @@
 #include "RISCV.h"
+#include "decoder/Decoder.h"  // 新增
 
 #define printf(...) (void)0
 
@@ -211,11 +212,20 @@ void Emulator::emulate() {
     }
     case 0b0110011: {
       instruction_valid = true;
-      if ((((this->instr >> 25) & 0x7F) == 0b0) ||
-          (((this->instr >> 25) & 0x7F) == 0b0100000))
-        this->decode_arthimetic_reg();
-      else if ((((this->instr >> 25) & 0x7F) == 0b0000001))
-        this->decode_RV32M();
+      {
+        Decoder::Decoder decoder;
+        auto decodedInst = decoder.decode(this->instr);
+        if (decodedInst) {
+          decodedInst->execute(this);
+        } else {
+          // fallback 到旧实现
+          if ((((this->instr >> 25) & 0x7F) == 0b0) ||
+              (((this->instr >> 25) & 0x7F) == 0b0100000))
+            this->decode_arthimetic_reg();
+          else if ((((this->instr >> 25) & 0x7F) == 0b0000001))
+            this->decode_RV32M();
+        }
+      }
       break;
     }
     case 0b0001011: {
