@@ -207,7 +207,15 @@ void Emulator::emulate() {
     } // store
     case 0b0010011: {
       instruction_valid = true;
-      this->decode_arthimetic_imm();
+      {
+        Decoder::Decoder decoder;
+        auto decodedInst = decoder.decode(this->instr);
+        if (decodedInst) {
+          decodedInst->execute(this);
+        } else {
+          this->decode_arthimetic_imm(); // fallback
+        }
+      }
       break;
     }
     case 0b0110011: {

@@ -2,6 +2,7 @@
 #include "decoder/AddInstruction.h"
 #include "decoder/ArithmeticRInstruction.h"
 #include "decoder/MulDivInstruction.h"
+#include "decoder/ITypeImmInstruction.h"
 
 namespace Decoder {
 
@@ -17,6 +18,11 @@ std::unique_ptr<Instruction> Decoder::decode(uint32_t word) {
         else {
             return std::make_unique<ArithmeticRInstruction>(word);
         }
+    }
+
+    // I-Type immediate arithmetic
+    if (opcode == 0b0010011) {
+        return std::make_unique<ITypeImmInstruction>(word);
     }
 
     // 其他指令暂未实现，返回 nullptr 触发旧路径
